@@ -2,6 +2,8 @@
 
 [n8n](https://n8n.io) community node for [TukiGrowth](https://tukigrowth.com) API.
 
+TukiGrowth is a marketing strategy and content planning platform. This node allows you to interact with organizations, clients, objectives, audiences, content briefs, and more.
+
 ## Installation
 
 ### In n8n Community Nodes
@@ -40,254 +42,348 @@ This node can be used as a tool in n8n AI Agent workflows. Simply add it to your
 
 ## Supported Resources & Operations
 
-### Conversation
+| Resource | List | Get | Create | Update | Delete |
+|----------|:----:|:---:|:------:|:------:|:------:|
+| Organization | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Client | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Business Context | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Objective | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Audience | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Pain Point | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Content Brief | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Social Media Post | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Website Content | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Asset | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Product | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Customer | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Order | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Ad Campaign | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Newsletter | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Comment | ✅ | ❌ | ✅ | ✅ | ✅ |
+
+### Organization
+
+Manage organizations (top-level entities).
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get a list of conversations with optional filters |
-| Get | Get a single conversation by ID |
-| Create | Create a new conversation |
-| Update | Update an existing conversation |
-| Analyze | Trigger AI analysis on a conversation |
-| Delete | Delete a conversation |
-
-**List Filters:**
-- **Search** - Text search in conversation content
-- **External Meeting ID** - Filter by external meeting source ID (e.g., Zoom, Google Meet)
-- **Team** - Filter by team
-- **Client** - Filter by client
-- **Project** - Filter by project
-- **Contact** - Filter by contact ID
-- **Participant** - Filter by participant name
-- **Category** - Filter by category ID
-- **Date From/To** - Filter by date range
-- **Source** - Filter by source key
-- **Type** - Filter by conversation type
-- **Has Analyses** - Filter by analysis status
-- **Limit/Offset** - Pagination
+| List | Get all organizations |
+| Get | Get a single organization by ID |
+| Create | Create a new organization |
+| Update | Update an organization |
 
 **Create/Update Fields:**
-- Title, Description, Overview
-- Date/Time, Duration
-- Transcript
-- Source Key, Source Conversation ID
-- Conversation Type
-- Language
-- Tags
-- Team, Client, Project
-- Participants
-
-### Contact
-| Operation | Description |
-|-----------|-------------|
-| List | Get a list of contacts with optional filters |
-| Get | Get a single contact by ID |
-| Create | Create a new contact |
-| Update | Update an existing contact |
-| Delete | Delete a contact |
-
-**List Filters:**
-- **Search** - Search in name, email
-- **Company** - Filter by company
-- **Tags** - Filter by tags
-- **Limit/Offset** - Pagination
-
-**Create/Update Fields:**
-- First Name, Last Name
-- Email, Phone, Identifier
-- Job Title, Department
-- Company Name
-- Tags
-
-### Team
-| Operation | Description |
-|-----------|-------------|
-| List | Get a list of teams |
-| Get | Get a single team by ID |
-| Create | Create a new team |
-| Update | Update an existing team |
-| Delete | Delete a team |
-
-### Project
-| Operation | Description |
-|-----------|-------------|
-| List | Get a list of projects with optional status filter |
-| Get | Get a single project by ID |
-| Create | Create a new project |
-| Update | Update an existing project |
-| Delete | Delete a project |
+- Name (required for create)
+- Slug (required for create, URL-friendly identifier)
+- Status (active, paused, archived)
 
 ### Client
+
+Manage clients within an organization.
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get a list of clients with optional filters |
+| List | Get all clients for an organization |
 | Get | Get a single client by ID |
 | Create | Create a new client |
-| Update | Update an existing client |
+| Update | Update a client |
 | Delete | Delete a client |
 
-**List Filters:**
-- **Type** - corporate, individual, partner
-- **Status** - active, inactive, prospect
-- **Limit/Offset** - Pagination
+**Create Fields:**
+- Name (required)
+- Code (optional)
+- Website (optional)
+- Industry (optional)
+- Description (optional)
 
-### Source
+### Business Context
+
+Manage the business context for a client (strategic information).
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get a list of sources |
-| Get | Get a single source by ID |
-| Create | Create a new source |
-| Update | Update an existing source |
+| Get | Get the business context for a client |
+| Update | Update the business context |
 
-### Conversation Type
+**Update Fields:**
+- Value Proposition
+- Target Audience
+- Competitive Advantage
+- Key Differentiators
+- Brand Voice
+
+### Objective
+
+Manage marketing objectives for a client.
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get available conversation types (read-only) |
-
-### Tag
-| Operation | Description |
-|-----------|-------------|
-| List | Get a list of all available tags |
-| Get | Get a single tag by ID |
-| Get Conversation Tags | Get tags for a specific conversation |
-| Search | Search tags by name |
-| Delete | Delete a tag |
-
-### Tag Definition
-| Operation | Description |
-|-----------|-------------|
-| List | Get a list of tag definitions |
-| Create | Create a new tag definition |
+| List | Get all objectives |
+| Get | Get an objective by ID |
+| Create | Create a new objective |
+| Update | Update an objective |
+| Delete | Delete an objective |
 
 **Create Fields:**
-- Name, Color, Description
-- Category (type, role, status, custom)
+- Title (required)
+- Type (awareness, consideration, conversion, retention)
 
-### Category
+### Audience
+
+Manage target audiences for a client.
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get a list of categories |
-| Get | Get a single category by ID |
-| Create | Create a new category |
-| Update | Update an existing category |
-| Delete | Delete a category |
+| List | Get all audiences |
+| Get | Get an audience by ID |
+| Create | Create a new audience |
+| Update | Update an audience |
+| Delete | Delete an audience |
 
-### Analysis
+**Create Fields:**
+- Name (required)
+- Description (optional)
+- Demographics (optional)
+- Pain Points (optional)
+- Goals (optional)
+
+### Pain Point
+
+Manage customer pain points for a client.
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get a list of analyses with optional filters |
-| Get | Get a single analysis by ID |
+| List | Get all pain points |
+| Get | Get a pain point by ID |
+| Create | Create a new pain point |
+| Update | Update a pain point |
+| Delete | Delete a pain point |
 
-**List Filters:**
-- **Conversation ID** - Filter by conversation
-- **Status** - PENDING, PROCESSING, COMPLETED, FAILED
-- **Limit/Offset** - Pagination
+**Create Fields:**
+- Title (required)
+- Severity (low, medium, high)
+- Description (optional)
 
-### Analysis Job
+### Content Brief
+
+Manage content briefs for a client.
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get a list of analysis jobs with optional filters |
-| Get | Get a single analysis job by ID |
+| List | Get all content briefs |
+| Get | Get a content brief by ID |
+| Create | Create a new content brief |
+| Update | Update a content brief |
+| Delete | Delete a content brief |
 
-**List Filters:**
-- **Status** - QUEUED, PROCESSING, COMPLETED, FAILED
-- **Search** - Search term
-- **Page/Page Size** - Pagination
+**Create Fields:**
+- Title (required)
+- Funnel Level (awareness, consideration, conversion, retention)
+- Description (optional)
+- Target Keywords (optional)
+- Content Type (optional)
 
-### Opportunity
+### Social Media Post
+
+Manage social media posts for a client.
+
 | Operation | Description |
 |-----------|-------------|
-| List | Get a list of opportunities with optional filters |
-| Get | Get a single opportunity by ID |
-| Create | Create a new opportunity |
-| Update | Update an existing opportunity |
+| List | Get all social media posts |
+| Get | Get a social media post by ID |
+| Create | Create a new social media post |
+| Update | Update a social media post |
+| Delete | Delete a social media post |
 
-**List Filters:**
-- **Status** - pending, approved, rejected, converted
-- **Conversation ID** - Filter by conversation
-- **Limit/Offset** - Pagination
+**Create Fields:**
+- Title (required)
+- Channel (linkedin, twitter, instagram, facebook, tiktok, youtube)
+- Content Type (post, story, reel, carousel)
+- Content (optional)
+- Scheduled Date (optional)
 
-**Create/Update Fields:**
-- Title, Description
-- Type - upselling, nueva_venta, renovacion_retencion, cross_sell
-- Status, Confidence
-- Estimated Value, Currency
-- Signals (comma-separated)
-- Expected Close Date
-- Conversation ID
+### Website Content
 
-### Usage
+Manage website content for a client.
+
 | Operation | Description |
 |-----------|-------------|
-| Get Stats | Get API usage statistics and subscription limits |
+| List | Get all website content |
+| Get | Get website content by ID |
+| Create | Create new website content |
+| Update | Update website content |
+| Delete | Delete website content |
 
-## Simplified Output
+**Create Fields:**
+- Title (required)
+- Content Type (landing_page, blog_post, product_page, about_page, faq)
+- Content (optional)
+- URL (optional)
+- Meta Description (optional)
 
-All List and Get operations include a **Simplified Output** option that returns only essential fields and excludes internal fields like `tenant_id`, `created_at`, `updated_at`, and `deleted_at`.
+### Asset
 
-**Fields included in simplified output:**
+Manage digital assets for a client.
 
-| Resource | Fields |
-|----------|--------|
-| Conversation | id, title, description, date_time, duration_minutes, status, team_id, project_id, client_id, source_key, conversation_type_key, ai_context, sentiment |
-| Contact | id, first_name, last_name, email, phone, company_name, job_title |
-| Team | id, name, description, color |
-| Project | id, name, description, status, client_id, ai_context |
-| Client | id, name, code, type, status, industry, website |
-| Source | id, key, label, active |
+| Operation | Description |
+|-----------|-------------|
+| List | Get all assets |
+| Get | Get an asset by ID |
+| Create | Create a new asset |
+| Update | Update an asset |
+| Delete | Delete an asset |
+
+**Create Fields:**
+- Name (required)
+- URL (required)
+- Type (image, video, document, audio, other)
+- Description (optional)
+
+### Product
+
+Manage products for a client.
+
+| Operation | Description |
+|-----------|-------------|
+| List | Get all products |
+| Get | Get a product by ID |
+| Create | Create a new product |
+| Update | Update a product |
+| Delete | Delete a product |
+
+**Create Fields:**
+- Name (required)
+- Description (optional)
+- Price (optional)
+- Category (optional)
+- SKU (optional)
+
+### Customer
+
+Manage customers for a client.
+
+| Operation | Description |
+|-----------|-------------|
+| List | Get all customers |
+| Get | Get a customer by ID |
+| Create | Create a new customer |
+| Update | Update a customer |
+| Delete | Delete a customer |
+
+**Create Fields:**
+- Name (required)
+- Email (optional)
+- Phone (optional)
+- Company (optional)
+
+### Order
+
+Manage orders for a client.
+
+| Operation | Description |
+|-----------|-------------|
+| List | Get all orders |
+| Get | Get an order by ID |
+| Create | Create a new order |
+| Update | Update an order |
+| Delete | Delete an order |
+
+**Create Fields:**
+- Customer ID (required)
+- Products (optional)
+- Total (optional)
+- Status (optional)
+
+### Ad Campaign
+
+Manage advertising campaigns for a client.
+
+| Operation | Description |
+|-----------|-------------|
+| List | Get all ad campaigns |
+| Get | Get an ad campaign by ID |
+| Create | Create a new ad campaign |
+| Update | Update an ad campaign |
+| Delete | Delete an ad campaign |
+
+**Create Fields:**
+- Name (required)
+- Platform (google, facebook, instagram, linkedin, tiktok)
+- Budget (optional)
+- Start Date (optional)
+- End Date (optional)
+- Status (optional)
+
+### Newsletter
+
+Manage newsletters for a client.
+
+| Operation | Description |
+|-----------|-------------|
+| List | Get all newsletters |
+| Get | Get a newsletter by ID |
+| Create | Create a new newsletter |
+| Update | Update a newsletter |
+| Delete | Delete a newsletter |
+
+**Create Fields:**
+- Subject (required)
+- Content (optional)
+- Scheduled Date (optional)
+- Status (optional)
+
+### Comment
+
+Manage comments on resources.
+
+| Operation | Description |
+|-----------|-------------|
+| List | Get all comments |
+| Create | Create a new comment |
+| Update | Update a comment |
+| Delete | Delete a comment |
+
+**Create Fields:**
+- Body (required)
+- Resource Type (optional)
+- Resource ID (optional)
+
+**Update Fields:**
+- Body
+- Is Resolved (boolean)
 
 ## Example Usage
 
-### Create a Conversation
+### Create a Client
 
 1. Add a **TukiGrowth** node to your workflow
-2. Select **Conversation** as the resource
+2. Select **Client** as the resource
 3. Select **Create** as the operation
-4. Fill in the required fields:
+4. Select the **Organization**
+5. Fill in the required fields:
+   - Name
+6. Optionally add:
+   - Code
+   - Website
+   - Industry
+
+### List Content Briefs
+
+1. Add a **TukiGrowth** node
+2. Select **Content Brief** > **List**
+3. Select the **Organization** and **Client**
+4. The node will return all content briefs for that client
+
+### Create a Social Media Post
+
+1. Add a **TukiGrowth** node
+2. Select **Social Media Post** > **Create**
+3. Select the **Organization** and **Client**
+4. Fill in:
    - Title
-   - Date/Time
-   - Transcript
-   - Source (e.g., "api")
-5. Optionally add:
-   - Team
-   - Project
-   - Client
-   - Participants
-   - Tags
-   - Language
-
-### List Conversations with Filters
-
-1. Add a **TukiGrowth** node
-2. Select **Conversation** > **List**
-3. Optionally filter by:
-   - Search term
-   - External Meeting ID
-   - Team, Client, Project
-   - Date range
-   - Category
-   - Contact
-   - Limit/Offset for pagination
-4. Enable **Simplified Output** for cleaner responses
-
-### Find Conversation by External Meeting ID
-
-1. Add a **TukiGrowth** node
-2. Select **Conversation** > **List**
-3. Enter the **External Meeting ID** (e.g., Zoom meeting ID)
-4. Set **Limit** to 1
-
-### Trigger AI Analysis
-
-1. Add a **TukiGrowth** node
-2. Select **Conversation** > **Analyze**
-3. Enter the Conversation ID
-4. Optionally specify analysis config IDs
-
-### Get Usage Statistics
-
-1. Add a **TukiGrowth** node
-2. Select **Usage** > **Get Stats**
-3. View your API usage and limits
+   - Channel (e.g., LinkedIn, Twitter)
+   - Content Type (post, carousel, etc.)
+   - Content
 
 ## Development
 
