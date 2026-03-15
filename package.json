@@ -1,0 +1,52 @@
+{
+  "name": "n8n-nodes-tukigrowth",
+  "version": "1.0.0",
+  "description": "n8n community node for TukiGrowth API",
+  "keywords": [
+    "n8n",
+    "n8n-community-node-package",
+    "tukigrowth",
+    "marketing",
+    "ecommerce",
+    "strategy"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/broobe/n8n-nodes-tukigrowth#readme",
+  "author": {
+    "name": "Broobe",
+    "email": "contact@broobe.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/broobe/n8n-nodes-tukigrowth.git"
+  },
+  "engines": {
+    "node": ">=18.10"
+  },
+  "main": "dist/nodes/TukiGrowth/TukiGrowth.node.js",
+  "scripts": {
+    "build": "tsc && cp nodes/TukiGrowth/tukigrowth.svg dist/nodes/TukiGrowth/",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/TukiGrowthApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/TukiGrowth/TukiGrowth.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "n8n-workflow": "^1.0.0",
+    "typescript": "^5.4.5"
+  },
+  "peerDependencies": {
+    "n8n-workflow": ">=1.0.0"
+  }
+}

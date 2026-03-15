@@ -1,0 +1,15 @@
+*.log
+.DS_Store
+.env
+.tmp
+.idea
+.vscode
+.prettierrc
+settings.local*
+
+node_modules/
+dist/
+docs/
+
+AGENTS.md
+CLAUDE.md
