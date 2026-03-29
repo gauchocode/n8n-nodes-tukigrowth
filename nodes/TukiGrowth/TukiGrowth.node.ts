@@ -38,6 +38,12 @@ function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 		body.name = ef.getNodeParameter('name', i) as string;
 		body.url = ef.getNodeParameter('assetUrl', i) as string;
 		body.type = ef.getNodeParameter('assetType', i) as string;
+	} else if (resource === 'ephemeris') {
+		body.title = ef.getNodeParameter('ephemerisTitle', i) as string;
+		body.date = ef.getNodeParameter('ephemerisDate', i) as string;
+	} else if (resource === 'category') {
+		body.name = ef.getNodeParameter('name', i) as string;
+		body.slug = ef.getNodeParameter('categorySlug', i) as string;
 	} else if (resource === 'product') {
 		body.name = ef.getNodeParameter('name', i) as string;
 		body.price = ef.getNodeParameter('price', i) as number;
@@ -49,14 +55,43 @@ function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 		body.orderDate = orderDate ? new Date(orderDate).getTime() : Date.now();
 		body.status = ef.getNodeParameter('orderStatus', i) as string;
 		body.totalAmount = ef.getNodeParameter('totalAmount', i) as number;
+	} else if (resource === 'service') {
+		body.name = ef.getNodeParameter('name', i) as string;
+		body.priceFrom = ef.getNodeParameter('priceFrom', i) as number;
+		body.billingType = ef.getNodeParameter('billingType', i) as string;
+	} else if (resource === 'package') {
+		body.name = ef.getNodeParameter('name', i) as string;
+		body.monthlyFee = ef.getNodeParameter('monthlyFee', i) as number;
+	} else if (resource === 'project') {
+		body.name = ef.getNodeParameter('name', i) as string;
+		body.status = ef.getNodeParameter('projectStatus', i) as string;
 	} else if (resource === 'campaign') {
 		body.name = ef.getNodeParameter('name', i) as string;
 		body.platform = ef.getNodeParameter('platform', i) as string;
 		body.monthlyBudget = ef.getNodeParameter('monthlyBudget', i) as number;
 		body.status = ef.getNodeParameter('campaignStatus', i) as string;
+	} else if (resource === 'ad') {
+		body.headline = ef.getNodeParameter('headline', i) as string;
+		body.status = ef.getNodeParameter('adStatus', i) as string;
+	} else if (resource === 'keyword') {
+		body.keyword = ef.getNodeParameter('keywordValue', i) as string;
+		body.type = ef.getNodeParameter('keywordType', i) as string;
 	} else if (resource === 'newsletter') {
 		body.subject = ef.getNodeParameter('subject', i) as string;
 		body.status = ef.getNodeParameter('newsletterStatus', i) as string;
+	} else if (resource === 'emailReport') {
+		body.sent = ef.getNodeParameter('sent', i) as number;
+		body.delivered = ef.getNodeParameter('delivered', i) as number;
+		body.opens = ef.getNodeParameter('opens', i) as number;
+		body.uniqueOpens = ef.getNodeParameter('uniqueOpens', i) as number;
+		body.clicks = ef.getNodeParameter('clicks', i) as number;
+		body.uniqueClicks = ef.getNodeParameter('uniqueClicks', i) as number;
+		body.bouncesSoft = ef.getNodeParameter('bouncesSoft', i) as number;
+		body.bouncesHard = ef.getNodeParameter('bouncesHard', i) as number;
+		body.unsubscribes = ef.getNodeParameter('unsubscribes', i) as number;
+	} else if (resource === 'opportunity') {
+		body.title = ef.getNodeParameter('title', i) as string;
+		body.type = ef.getNodeParameter('opportunityType', i) as string;
 	} else if (resource === 'comment') {
 		body.body = ef.getNodeParameter('commentBody', i) as string;
 	}
@@ -68,10 +103,10 @@ function buildUpdateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	const additionalFields = ef.getNodeParameter('additionalFields', i, {}) as Record<string, any>;
 	const body: Record<string, any> = {};
 
-	if (['objective', 'painPoint', 'contentBrief'].includes(resource)) {
+	if (['objective', 'painPoint', 'contentBrief', 'ephemeris', 'opportunity'].includes(resource)) {
 		const title = ef.getNodeParameter('title', i, '') as string;
 		if (title) body.title = title;
-	} else if (['audience', 'asset', 'product', 'campaign'].includes(resource)) {
+	} else if (['audience', 'asset', 'product', 'campaign', 'category', 'service', 'package', 'project'].includes(resource)) {
 		const name = ef.getNodeParameter('name', i, '') as string;
 		if (name) body.name = name;
 	} else if (resource === 'socialMedia' || resource === 'websiteContent') {
@@ -80,6 +115,12 @@ function buildUpdateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	} else if (resource === 'newsletter') {
 		const subject = ef.getNodeParameter('subject', i, '') as string;
 		if (subject) body.subject = subject;
+	} else if (resource === 'ad') {
+		const headline = ef.getNodeParameter('headline', i, '') as string;
+		if (headline) body.headline = headline;
+	} else if (resource === 'keyword') {
+		const keyword = ef.getNodeParameter('keywordValue', i, '') as string;
+		if (keyword) body.keyword = keyword;
 	} else if (resource === 'comment') {
 		body.body = ef.getNodeParameter('commentBody', i) as string;
 		body.isResolved = ef.getNodeParameter('isResolved', i, false) as boolean;
@@ -120,11 +161,20 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Social Media Post', value: 'socialMedia' },
 					{ name: 'Website Content', value: 'websiteContent' },
 					{ name: 'Asset', value: 'asset' },
+					{ name: 'Ephemeris', value: 'ephemeris' },
+					{ name: 'Category', value: 'category' },
 					{ name: 'Product', value: 'product' },
 					{ name: 'Customer', value: 'customer' },
 					{ name: 'Order', value: 'order' },
+					{ name: 'Service', value: 'service' },
+					{ name: 'Package', value: 'package' },
+					{ name: 'Project', value: 'project' },
 					{ name: 'Ad Campaign', value: 'campaign' },
+					{ name: 'Ad', value: 'ad' },
+					{ name: 'Keyword', value: 'keyword' },
 					{ name: 'Newsletter', value: 'newsletter' },
+					{ name: 'Email Report', value: 'emailReport' },
+					{ name: 'Opportunity', value: 'opportunity' },
 					{ name: 'Comment', value: 'comment' },
 				],
 				default: 'organization',
@@ -282,6 +332,36 @@ export class TukiGrowth implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
+				displayOptions: { show: { resource: ['ephemeris'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List ephemerides' },
+					{ name: 'Get', value: 'get', action: 'Get an ephemeris' },
+					{ name: 'Create', value: 'create', action: 'Create an ephemeris' },
+					{ name: 'Update', value: 'update', action: 'Update an ephemeris' },
+					{ name: 'Delete', value: 'delete', action: 'Delete an ephemeris' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['category'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List categories' },
+					{ name: 'Get', value: 'get', action: 'Get a category' },
+					{ name: 'Create', value: 'create', action: 'Create a category' },
+					{ name: 'Update', value: 'update', action: 'Update a category' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a category' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
 				displayOptions: { show: { resource: ['product'] } },
 				options: [
 					{ name: 'List', value: 'list', action: 'List products' },
@@ -327,6 +407,51 @@ export class TukiGrowth implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
+				displayOptions: { show: { resource: ['service'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List services' },
+					{ name: 'Get', value: 'get', action: 'Get a service' },
+					{ name: 'Create', value: 'create', action: 'Create a service' },
+					{ name: 'Update', value: 'update', action: 'Update a service' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a service' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['package'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List packages' },
+					{ name: 'Get', value: 'get', action: 'Get a package' },
+					{ name: 'Create', value: 'create', action: 'Create a package' },
+					{ name: 'Update', value: 'update', action: 'Update a package' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a package' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['project'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List projects' },
+					{ name: 'Get', value: 'get', action: 'Get a project' },
+					{ name: 'Create', value: 'create', action: 'Create a project' },
+					{ name: 'Update', value: 'update', action: 'Update a project' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a project' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
 				displayOptions: { show: { resource: ['campaign'] } },
 				options: [
 					{ name: 'List', value: 'list', action: 'List ad campaigns' },
@@ -342,6 +467,36 @@ export class TukiGrowth implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
+				displayOptions: { show: { resource: ['ad'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List ads' },
+					{ name: 'Get', value: 'get', action: 'Get an ad' },
+					{ name: 'Create', value: 'create', action: 'Create an ad' },
+					{ name: 'Update', value: 'update', action: 'Update an ad' },
+					{ name: 'Delete', value: 'delete', action: 'Delete an ad' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['keyword'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List keywords' },
+					{ name: 'Get', value: 'get', action: 'Get a keyword' },
+					{ name: 'Create', value: 'create', action: 'Create a keyword' },
+					{ name: 'Update', value: 'update', action: 'Update a keyword' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a keyword' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
 				displayOptions: { show: { resource: ['newsletter'] } },
 				options: [
 					{ name: 'List', value: 'list', action: 'List newsletters' },
@@ -349,6 +504,36 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Create', value: 'create', action: 'Create a newsletter' },
 					{ name: 'Update', value: 'update', action: 'Update a newsletter' },
 					{ name: 'Delete', value: 'delete', action: 'Delete a newsletter' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['emailReport'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List email reports' },
+					{ name: 'Get', value: 'get', action: 'Get an email report' },
+					{ name: 'Create', value: 'create', action: 'Create an email report' },
+					{ name: 'Update', value: 'update', action: 'Update an email report' },
+					{ name: 'Delete', value: 'delete', action: 'Delete an email report' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['opportunity'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List opportunities' },
+					{ name: 'Get', value: 'get', action: 'Get an opportunity' },
+					{ name: 'Create', value: 'create', action: 'Create an opportunity' },
+					{ name: 'Update', value: 'update', action: 'Update an opportunity' },
+					{ name: 'Delete', value: 'delete', action: 'Delete an opportunity' },
 				],
 				default: 'list',
 			},
@@ -377,8 +562,11 @@ export class TukiGrowth implements INodeType {
 					show: {
 						resource: [
 							'client', 'businessContext', 'objective', 'audience', 'painPoint',
-							'contentBrief', 'socialMedia', 'websiteContent', 'asset',
-							'product', 'customer', 'order', 'campaign', 'newsletter', 'comment',
+							'contentBrief', 'socialMedia', 'websiteContent', 'asset', 'ephemeris',
+							'category', 'product', 'customer', 'order',
+							'service', 'package', 'project',
+							'campaign', 'ad', 'keyword',
+							'newsletter', 'emailReport', 'opportunity', 'comment',
 						],
 					},
 				},
@@ -397,8 +585,11 @@ export class TukiGrowth implements INodeType {
 					show: {
 						resource: [
 							'businessContext', 'objective', 'audience', 'painPoint',
-							'contentBrief', 'socialMedia', 'websiteContent', 'asset',
-							'product', 'customer', 'order', 'campaign', 'newsletter', 'comment',
+							'contentBrief', 'socialMedia', 'websiteContent', 'asset', 'ephemeris',
+							'category', 'product', 'customer', 'order',
+							'service', 'package', 'project',
+							'campaign', 'ad', 'keyword',
+							'newsletter', 'emailReport', 'opportunity', 'comment',
 						],
 					},
 				},
@@ -523,8 +714,9 @@ export class TukiGrowth implements INodeType {
 					show: {
 						resource: [
 							'objective', 'audience', 'painPoint', 'contentBrief', 'socialMedia',
-							'websiteContent', 'asset', 'product', 'customer', 'order',
-							'campaign', 'newsletter', 'comment',
+							'websiteContent', 'asset', 'ephemeris', 'category', 'product', 'customer', 'order',
+							'service', 'package', 'project', 'campaign', 'ad', 'keyword',
+							'newsletter', 'emailReport', 'opportunity', 'comment',
 						],
 						operation: ['get', 'update', 'delete'],
 					},
@@ -575,7 +767,7 @@ export class TukiGrowth implements INodeType {
 				type: 'string',
 				displayOptions: {
 					show: {
-						resource: ['objective', 'painPoint', 'contentBrief'],
+						resource: ['objective', 'painPoint', 'contentBrief', 'ephemeris', 'opportunity'],
 						operation: ['create', 'update'],
 					},
 				},
@@ -630,7 +822,7 @@ export class TukiGrowth implements INodeType {
 				type: 'string',
 				displayOptions: {
 					show: {
-						resource: ['audience', 'asset'],
+						resource: ['audience', 'asset', 'category', 'service', 'package', 'project'],
 						operation: ['create', 'update'],
 					},
 				},
@@ -895,6 +1087,69 @@ export class TukiGrowth implements INodeType {
 				],
 			},
 
+			// ─── EPHEMERIS FIELDS ────────────────────────────────────────
+			{
+				displayName: 'Title',
+				name: 'ephemerisTitle',
+				type: 'string',
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['create'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Date',
+				name: 'ephemerisDate',
+				type: 'dateTime',
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['create'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{
+						displayName: 'Status',
+						name: 'status',
+						type: 'options',
+						options: [
+							{ name: 'Active', value: 'active' },
+							{ name: 'Archived', value: 'archived' },
+						],
+						default: 'active',
+					},
+				],
+			},
+
+			// ─── CATEGORY FIELDS ─────────────────────────────────────────
+			{
+				displayName: 'Slug',
+				name: 'categorySlug',
+				type: 'string',
+				displayOptions: { show: { resource: ['category'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'URL-friendly identifier',
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['category'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{ displayName: 'Parent Category ID', name: 'parentId', type: 'string', default: '' },
+					{ displayName: 'External ID', name: 'externalId', type: 'string', default: '' },
+				],
+			},
+
 			// ─── PRODUCT FIELDS ───────────────────────────────────────────
 			{
 				displayName: 'Name',
@@ -941,8 +1196,10 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
 					{ displayName: 'Currency', name: 'currency', type: 'string', default: 'USD' },
 					{ displayName: 'Image URL', name: 'imageUrl', type: 'string', default: '' },
+					{ displayName: 'Category ID', name: 'categoryId', type: 'string', default: '' },
 					{ displayName: 'SEO Title', name: 'seoTitle', type: 'string', default: '' },
 					{ displayName: 'SEO Description', name: 'seoDescription', type: 'string', default: '' },
+					{ displayName: 'Focus Keyword', name: 'focusKeyword', type: 'string', default: '' },
 					{ displayName: 'External ID', name: 'externalId', type: 'string', default: '' },
 					{
 						displayName: 'Status',
@@ -1039,6 +1296,105 @@ export class TukiGrowth implements INodeType {
 				],
 			},
 
+			// ─── SERVICE FIELDS ──────────────────────────────────────────
+			{
+				displayName: 'Price From',
+				name: 'priceFrom',
+				type: 'number',
+				displayOptions: { show: { resource: ['service'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Billing Type',
+				name: 'billingType',
+				type: 'options',
+				options: [
+					{ name: 'One-off', value: 'one_off' },
+					{ name: 'Retainer', value: 'retainer' },
+					{ name: 'Hourly', value: 'hourly' },
+				],
+				displayOptions: { show: { resource: ['service'], operation: ['create'] } },
+				default: 'one_off',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['service'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{ displayName: 'Category', name: 'category', type: 'string', default: '' },
+				],
+			},
+
+			// ─── PACKAGE FIELDS ──────────────────────────────────────────
+			{
+				displayName: 'Monthly Fee',
+				name: 'monthlyFee',
+				type: 'number',
+				displayOptions: { show: { resource: ['package'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['package'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{ displayName: 'Currency', name: 'currency', type: 'string', default: 'USD' },
+				],
+			},
+
+			// ─── PROJECT FIELDS ──────────────────────────────────────────
+			{
+				displayName: 'Status',
+				name: 'projectStatus',
+				type: 'options',
+				options: [
+					{ name: 'Active', value: 'active' },
+					{ name: 'Paused', value: 'paused' },
+					{ name: 'Completed', value: 'completed' },
+					{ name: 'Cancelled', value: 'cancelled' },
+				],
+				displayOptions: { show: { resource: ['project'], operation: ['create'] } },
+				default: 'active',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['project'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Notes', name: 'notes', type: 'string', default: '' },
+					{ displayName: 'Service Package ID', name: 'servicePackageId', type: 'string', default: '' },
+					{ displayName: 'Start Date', name: 'startDate', type: 'dateTime', default: '' },
+					{ displayName: 'End Date', name: 'endDate', type: 'dateTime', default: '' },
+					{
+						displayName: 'Status',
+						name: 'status',
+						type: 'options',
+						options: [
+							{ name: 'Active', value: 'active' },
+							{ name: 'Paused', value: 'paused' },
+							{ name: 'Completed', value: 'completed' },
+							{ name: 'Cancelled', value: 'cancelled' },
+						],
+						default: 'active',
+					},
+				],
+			},
+
 			// ─── AD CAMPAIGN FIELDS ───────────────────────────────────────
 			{
 				displayName: 'Platform',
@@ -1098,6 +1454,105 @@ export class TukiGrowth implements INodeType {
 				],
 			},
 
+			// ─── AD FIELDS ────────────────────────────────────────────────
+			{
+				displayName: 'Headline',
+				name: 'headline',
+				type: 'string',
+				displayOptions: { show: { resource: ['ad'], operation: ['create', 'update'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Status',
+				name: 'adStatus',
+				type: 'options',
+				options: [
+					{ name: 'Draft', value: 'draft' },
+					{ name: 'To Approve', value: 'to_approve' },
+					{ name: 'Active', value: 'active' },
+					{ name: 'Paused', value: 'paused' },
+					{ name: 'Rejected', value: 'rejected' },
+				],
+				displayOptions: { show: { resource: ['ad'], operation: ['create'] } },
+				default: 'draft',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['ad'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Campaign ID', name: 'campaignId', type: 'string', default: '' },
+					{ displayName: 'Ad Group', name: 'adGroup', type: 'string', default: '' },
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{ displayName: 'URL', name: 'url', type: 'string', default: '' },
+					{
+						displayName: 'Status',
+						name: 'status',
+						type: 'options',
+						options: [
+							{ name: 'Draft', value: 'draft' },
+							{ name: 'To Approve', value: 'to_approve' },
+							{ name: 'Active', value: 'active' },
+							{ name: 'Paused', value: 'paused' },
+							{ name: 'Rejected', value: 'rejected' },
+						],
+						default: 'draft',
+					},
+				],
+			},
+
+			// ─── KEYWORD FIELDS ──────────────────────────────────────────
+			{
+				displayName: 'Keyword',
+				name: 'keywordValue',
+				type: 'string',
+				displayOptions: { show: { resource: ['keyword'], operation: ['create', 'update'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Type',
+				name: 'keywordType',
+				type: 'options',
+				options: [
+					{ name: 'Non-Branded', value: 'non_branded' },
+					{ name: 'Negative', value: 'negative' },
+					{ name: 'Brand', value: 'brand' },
+				],
+				displayOptions: { show: { resource: ['keyword'], operation: ['create'] } },
+				default: 'non_branded',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['keyword'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Search Volume', name: 'searchVolume', type: 'number', default: 0 },
+					{ displayName: 'CPC', name: 'cpc', type: 'number', default: 0 },
+					{ displayName: 'Paid Difficulty', name: 'paidDifficulty', type: 'number', default: 0 },
+					{
+						displayName: 'Type',
+						name: 'type',
+						type: 'options',
+						options: [
+							{ name: 'Non-Branded', value: 'non_branded' },
+							{ name: 'Negative', value: 'negative' },
+							{ name: 'Brand', value: 'brand' },
+						],
+						default: 'non_branded',
+					},
+				],
+			},
+
 			// ─── NEWSLETTER FIELDS ────────────────────────────────────────
 			{
 				displayName: 'Subject',
@@ -1143,6 +1598,152 @@ export class TukiGrowth implements INodeType {
 				],
 			},
 
+			// ─── EMAIL REPORT FIELDS ─────────────────────────────────────
+			{
+				displayName: 'Sent',
+				name: 'sent',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Delivered',
+				name: 'delivered',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Opens',
+				name: 'opens',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Unique Opens',
+				name: 'uniqueOpens',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Clicks',
+				name: 'clicks',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Unique Clicks',
+				name: 'uniqueClicks',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Soft Bounces',
+				name: 'bouncesSoft',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Hard Bounces',
+				name: 'bouncesHard',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Unsubscribes',
+				name: 'unsubscribes',
+				type: 'number',
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create'] } },
+				default: 0,
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['emailReport'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Newsletter ID', name: 'newsletterId', type: 'string', default: '' },
+					{ displayName: 'Provider Campaign ID', name: 'providerCampaignId', type: 'string', default: '' },
+					{ displayName: 'Sent At', name: 'sentAt', type: 'dateTime', default: '' },
+				],
+			},
+
+			// ─── OPPORTUNITY FIELDS ───────────────────────────────────────
+			{
+				displayName: 'Type',
+				name: 'opportunityType',
+				type: 'options',
+				options: [
+					{ name: 'Podcast', value: 'podcast' },
+					{ name: 'Event', value: 'event' },
+					{ name: 'Media', value: 'media' },
+					{ name: 'Speaking', value: 'speaking' },
+					{ name: 'Other', value: 'other' },
+				],
+				displayOptions: { show: { resource: ['opportunity'], operation: ['create'] } },
+				default: 'other',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['opportunity'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{ displayName: 'Contact Name', name: 'contactName', type: 'string', default: '' },
+					{ displayName: 'Contact Email', name: 'contactEmail', type: 'string', default: '' },
+					{ displayName: 'URL', name: 'url', type: 'string', default: '' },
+					{ displayName: 'Date', name: 'date', type: 'dateTime', default: '' },
+					{
+						displayName: 'Stage',
+						name: 'stage',
+						type: 'options',
+						options: [
+							{ name: 'Identified', value: 'identified' },
+							{ name: 'Outreach', value: 'outreach' },
+							{ name: 'Negotiation', value: 'negotiation' },
+							{ name: 'Confirmed', value: 'confirmed' },
+							{ name: 'Completed', value: 'completed' },
+							{ name: 'Cancelled', value: 'cancelled' },
+						],
+						default: 'identified',
+					},
+					{
+						displayName: 'Type',
+						name: 'type',
+						type: 'options',
+						options: [
+							{ name: 'Podcast', value: 'podcast' },
+							{ name: 'Event', value: 'event' },
+							{ name: 'Media', value: 'media' },
+							{ name: 'Speaking', value: 'speaking' },
+							{ name: 'Other', value: 'other' },
+						],
+						default: 'other',
+					},
+				],
+			},
+
 			// ─── COMMENT FIELDS ───────────────────────────────────────────
 			{
 				displayName: 'Body',
@@ -1183,8 +1784,11 @@ export class TukiGrowth implements INodeType {
 					show: {
 						resource: [
 							'organization', 'client', 'objective', 'audience', 'painPoint',
-							'contentBrief', 'socialMedia', 'websiteContent', 'asset',
-							'product', 'customer', 'order', 'campaign', 'newsletter', 'comment',
+							'contentBrief', 'socialMedia', 'websiteContent', 'asset', 'ephemeris',
+							'category', 'product', 'customer', 'order',
+							'service', 'package', 'project',
+							'campaign', 'ad', 'keyword',
+							'newsletter', 'emailReport', 'opportunity', 'comment',
 						],
 						operation: ['list'],
 					},
@@ -1352,11 +1956,20 @@ export class TukiGrowth implements INodeType {
 						socialMedia: 'content/rrss',
 						websiteContent: 'content/website',
 						asset: 'content/assets',
+						ephemeris: 'content/ephemerides',
+						category: 'ecommerce/categories',
 						product: 'ecommerce/products',
 						customer: 'ecommerce/customers',
 						order: 'ecommerce/orders',
+						service: 'services/services',
+						package: 'services/packages',
+						project: 'services/projects',
 						campaign: 'ads/campaigns',
+						ad: 'ads/ads',
+						keyword: 'ads/keywords',
 						newsletter: 'email/newsletters',
+						emailReport: 'email/reports',
+						opportunity: 'pr-speaking/opportunities',
 						comment: 'comments',
 					};
 

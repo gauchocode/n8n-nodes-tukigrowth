@@ -6,7 +6,13 @@ description: >
 
 # TukiGrowth REST API v1
 
-TukiGrowth exposes ~115 REST endpoints that act as thin proxies over Convex functions. Each route only validates auth → calls Convex → formats response. Business logic lives in Convex.
+TukiGrowth exposes REST endpoints that act as thin proxies over Convex functions. Each route only validates auth -> calls Convex -> formats response. Business logic lives in Convex.
+
+The source of truth for the current public contract is:
+- OpenAPI JSON: `/api/docs/spec`
+- Swagger UI: `/api/docs`
+
+Use those docs first if you need exact request or response details.
 
 ---
 
@@ -131,7 +137,7 @@ GET    .../clients/{clientId}/modules             → list enabled/disabled modu
 PATCH  .../clients/{clientId}/modules             → toggle module ({ module, enabled })
 ```
 
-**Available modules:** `strategy`, `content_briefs`, `planning_rrss`, `planning_website`, `content_assets`, `ecommerce`, `services`, `ads`, `email`
+**Available modules:** `business_context`, `strategy`, `content_briefs`, `planning_rrss`, `planning_website`, `planning_ephemerides`, `reference_content`, `content_assets`, `ecommerce`, `services`, `ads`, `email`, `pr_speaking`, `leads`
 
 #### Client Members
 
@@ -277,6 +283,29 @@ PATCH  .../content/assets/{id}
 DELETE .../content/assets/{id}
 ```
 
+**Upload helpers:**
+```
+POST   .../content/assets/presign
+POST   .../content/assets/confirm
+POST   .../content/assets/upload
+POST   .../content/assets/upload/bulk
+```
+
+#### Ephemerides
+
+```
+GET    .../content/ephemerides
+POST   .../content/ephemerides
+GET    .../content/ephemerides/{id}
+PATCH  .../content/ephemerides/{id}
+DELETE .../content/ephemerides/{id}
+GET    .../content/ephemerides/by-month?month=3&year=2026
+GET    .../content/ephemerides/upcoming?limit=10&daysAhead=30
+POST   .../content/ephemerides/bulk
+```
+
+**Bulk body:** `{ "action": "delete|update_status", "ids": ["..."], "status": "active|archived" }`
+
 ---
 
 ### E-commerce Module
@@ -381,6 +410,13 @@ DELETE .../ads/ads/{id}
 
 **Ad keywords (many-to-many):**
 ```
+GET    .../ads/ads/{id}/keywords
+POST   .../ads/ads/{id}/keywords              → { keywordId }
+DELETE .../ads/ads/{id}/keywords?linkId={id}
+```
+
+**Ad keywords (many-to-many):**
+```
 GET    .../ads/ads/{id}/keywords              → list linked keywords
 POST   .../ads/ads/{id}/keywords              → { keywordId } to link
 DELETE .../ads/ads/{id}/keywords?linkId={id}  → unlink keyword
@@ -419,6 +455,25 @@ GET    .../email/reports/{id}
 PATCH  .../email/reports/{id}
 DELETE .../email/reports/{id}
 ```
+
+---
+
+### PR & Speaking Module
+
+#### Opportunities
+
+```
+GET    .../pr-speaking/opportunities
+POST   .../pr-speaking/opportunities
+GET    .../pr-speaking/opportunities/{id}
+PATCH  .../pr-speaking/opportunities/{id}
+DELETE .../pr-speaking/opportunities/{id}
+POST   .../pr-speaking/opportunities/bulk
+```
+
+**List filters:** `?stage=` and `?type=`
+
+**Bulk body:** `{ "action": "move_stage", "ids": ["..."], "stage": "confirmed" }`
 
 ---
 
@@ -483,6 +538,8 @@ curl ".../ecommerce/orders?status=pending" \
 - **Auto-managed fields**: `createdAt`, `updatedAt`, `createdBy`, `updatedBy` — never send these
 - **clientId / organizationId**: always come from the URL, never include in body
 - **Default statuses on create**: objectives → `planned`, briefs → `idea`, social/website → `idea`, clients → `active`
+
+When this skill is used, prefer the OpenAPI spec over memorized examples if there is any discrepancy.
 
 ---
 
