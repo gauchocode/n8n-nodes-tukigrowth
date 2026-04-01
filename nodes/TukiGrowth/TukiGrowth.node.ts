@@ -176,6 +176,10 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Email Report', value: 'emailReport' },
 					{ name: 'Opportunity', value: 'opportunity' },
 					{ name: 'Comment', value: 'comment' },
+					{ name: 'Organization Member', value: 'organizationMember' },
+					{ name: 'Client Member', value: 'clientMember' },
+					{ name: 'Audience Pain Point', value: 'audiencePainPoint' },
+					{ name: 'Ad Keyword', value: 'adKeyword' },
 				],
 				default: 'organization',
 			},
@@ -339,6 +343,9 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Create', value: 'create', action: 'Create an ephemeris' },
 					{ name: 'Update', value: 'update', action: 'Update an ephemeris' },
 					{ name: 'Delete', value: 'delete', action: 'Delete an ephemeris' },
+					{ name: 'List by Month', value: 'listByMonth', action: 'List ephemerides by month' },
+					{ name: 'List Upcoming', value: 'listUpcoming', action: 'List upcoming ephemerides' },
+					{ name: 'Bulk Action', value: 'bulkAction', action: 'Bulk action on ephemerides' },
 				],
 				default: 'list',
 			},
@@ -551,6 +558,61 @@ export class TukiGrowth implements INodeType {
 				],
 				default: 'list',
 			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['organizationMember'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List organization members' },
+					{ name: 'Invite', value: 'create', action: 'Invite a member' },
+					{ name: 'Update Role', value: 'update', action: 'Update member role' },
+					{ name: 'Remove', value: 'delete', action: 'Remove a member' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['clientMember'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List client members' },
+					{ name: 'Add', value: 'create', action: 'Add a member' },
+					{ name: 'Update Role', value: 'update', action: 'Update member role' },
+					{ name: 'Remove', value: 'delete', action: 'Remove a member' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['audiencePainPoint'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List audience pain points' },
+					{ name: 'Link', value: 'create', action: 'Link a pain point' },
+					{ name: 'Update Score', value: 'update', action: 'Update relevance score' },
+					{ name: 'Unlink', value: 'delete', action: 'Unlink a pain point' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['adKeyword'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List ad keywords' },
+					{ name: 'Link', value: 'create', action: 'Link a keyword' },
+					{ name: 'Unlink', value: 'delete', action: 'Unlink a keyword' },
+				],
+				default: 'list',
+			},
 
 			// ─── SHARED: ORGANIZATION ID (dropdown) ──────────────────────
 			{
@@ -567,6 +629,7 @@ export class TukiGrowth implements INodeType {
 							'service', 'package', 'project',
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
+							'organizationMember', 'clientMember', 'audiencePainPoint', 'adKeyword',
 						],
 					},
 				},
@@ -590,6 +653,7 @@ export class TukiGrowth implements INodeType {
 							'service', 'package', 'project',
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
+							'clientMember', 'audiencePainPoint', 'adKeyword',
 						],
 					},
 				},
@@ -1773,6 +1837,239 @@ export class TukiGrowth implements INodeType {
 				default: false,
 			},
 
+			// ─── ORGANIZATION MEMBER FIELDS ────────────────────────────────────
+			{
+				displayName: 'User ID',
+				name: 'memberUserId',
+				type: 'string',
+				displayOptions: { show: { resource: ['organizationMember'], operation: ['update', 'delete'] } },
+				default: '',
+				required: true,
+				description: 'ID of the user',
+			},
+			{
+				displayName: 'Email',
+				name: 'memberEmail',
+				type: 'string',
+				displayOptions: { show: { resource: ['organizationMember'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Email of the user to invite',
+			},
+			{
+				displayName: 'Role',
+				name: 'memberRole',
+				type: 'options',
+				options: [
+					{ name: 'Admin', value: 'admin' },
+					{ name: 'Editor', value: 'editor' },
+					{ name: 'Approver', value: 'approver' },
+					{ name: 'Commenter', value: 'commenter' },
+					{ name: 'Viewer', value: 'viewer' },
+				],
+				displayOptions: { show: { resource: ['organizationMember'], operation: ['create', 'update'] } },
+				default: 'viewer',
+				required: true,
+				description: 'Role to assign to the member',
+			},
+
+			// ─── CLIENT MEMBER FIELDS ──────────────────────────────────────────
+			{
+				displayName: 'Member ID',
+				name: 'clientMemberId',
+				type: 'string',
+				displayOptions: { show: { resource: ['clientMember'], operation: ['update', 'delete'] } },
+				default: '',
+				required: true,
+				description: 'ID of the member',
+			},
+			{
+				displayName: 'Email',
+				name: 'clientMemberEmail',
+				type: 'string',
+				displayOptions: { show: { resource: ['clientMember'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Email of the user to add',
+			},
+			{
+				displayName: 'Role Override',
+				name: 'roleOverride',
+				type: 'options',
+				options: [
+					{ name: 'Admin', value: 'admin' },
+					{ name: 'Editor', value: 'editor' },
+					{ name: 'Approver', value: 'approver' },
+					{ name: 'Commenter', value: 'commenter' },
+					{ name: 'Viewer', value: 'viewer' },
+				],
+				displayOptions: { show: { resource: ['clientMember'], operation: ['create'] } },
+				default: '',
+				description: 'Override role for this client (optional)',
+			},
+			{
+				displayName: 'Role',
+				name: 'clientMemberRole',
+				type: 'options',
+				options: [
+					{ name: 'Admin', value: 'admin' },
+					{ name: 'Editor', value: 'editor' },
+					{ name: 'Approver', value: 'approver' },
+					{ name: 'Commenter', value: 'commenter' },
+					{ name: 'Viewer', value: 'viewer' },
+				],
+				displayOptions: { show: { resource: ['clientMember'], operation: ['update'] } },
+				default: 'viewer',
+				required: true,
+				description: 'Role to assign to the member',
+			},
+
+			// ─── AUDIENCE PAIN POINT FIELDS ────────────────────────────────────
+			{
+				displayName: 'Audience',
+				name: 'audienceId',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getAudiences' },
+				displayOptions: { show: { resource: ['audiencePainPoint'] } },
+				default: '',
+				required: true,
+				description: 'Audience to manage pain points for',
+			},
+			{
+				displayName: 'Link ID',
+				name: 'painPointLinkId',
+				type: 'string',
+				displayOptions: { show: { resource: ['audiencePainPoint'], operation: ['update', 'delete'] } },
+				default: '',
+				required: true,
+				description: 'ID of the pain point link',
+			},
+			{
+				displayName: 'Pain Point',
+				name: 'painPointIdToLink',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getPainPoints' },
+				displayOptions: { show: { resource: ['audiencePainPoint'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Pain point to link',
+			},
+			{
+				displayName: 'Relevance Score',
+				name: 'relevanceScore',
+				type: 'number',
+				displayOptions: { show: { resource: ['audiencePainPoint'], operation: ['create', 'update'] } },
+				default: 5,
+				description: 'How relevant this pain point is (1-10)',
+				typeOptions: { minValue: 1, maxValue: 10 },
+			},
+
+			// ─── AD KEYWORD FIELDS ─────────────────────────────────────────────
+			{
+				displayName: 'Ad',
+				name: 'adIdForKeyword',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getAds' },
+				displayOptions: { show: { resource: ['adKeyword'] } },
+				default: '',
+				required: true,
+				description: 'Ad to manage keywords for',
+			},
+			{
+				displayName: 'Link ID',
+				name: 'keywordLinkId',
+				type: 'string',
+				displayOptions: { show: { resource: ['adKeyword'], operation: ['delete'] } },
+				default: '',
+				required: true,
+				description: 'ID of the keyword link to remove',
+			},
+			{
+				displayName: 'Keyword',
+				name: 'keywordIdToLink',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'getKeywords' },
+				displayOptions: { show: { resource: ['adKeyword'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Keyword to link',
+			},
+
+			// ─── EPHEMERIS BY MONTH FIELDS ─────────────────────────────────────
+			{
+				displayName: 'Month',
+				name: 'ephemerisMonth',
+				type: 'number',
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['listByMonth'] } },
+				default: 1,
+				required: true,
+				description: 'Month number (1-12)',
+				typeOptions: { minValue: 1, maxValue: 12 },
+			},
+			{
+				displayName: 'Year',
+				name: 'ephemerisYear',
+				type: 'number',
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['listByMonth'] } },
+				default: 2026,
+				required: true,
+				description: 'Year',
+			},
+
+			// ─── EPHEMERIS UPCOMING FIELDS ─────────────────────────────────────
+			{
+				displayName: 'Limit',
+				name: 'ephemerisLimit',
+				type: 'number',
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['listUpcoming'] } },
+				default: 10,
+				description: 'Maximum number of results',
+			},
+			{
+				displayName: 'Days Ahead',
+				name: 'ephemerisDaysAhead',
+				type: 'number',
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['listUpcoming'] } },
+				default: 30,
+				description: 'Number of days to look ahead',
+			},
+
+			// ─── EPHEMERIS BULK FIELDS ─────────────────────────────────────────
+			{
+				displayName: 'Action',
+				name: 'ephemerisBulkAction',
+				type: 'options',
+				options: [
+					{ name: 'Delete', value: 'delete' },
+					{ name: 'Update Status', value: 'update_status' },
+				],
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['bulkAction'] } },
+				default: 'delete',
+				required: true,
+				description: 'Bulk action to perform',
+			},
+			{
+				displayName: 'IDs',
+				name: 'ephemerisBulkIds',
+				type: 'string',
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['bulkAction'] } },
+				default: '',
+				required: true,
+				description: 'Comma-separated list of ephemeris IDs',
+			},
+			{
+				displayName: 'Status',
+				name: 'ephemerisBulkStatus',
+				type: 'options',
+				options: [
+					{ name: 'Active', value: 'active' },
+					{ name: 'Archived', value: 'archived' },
+				],
+				displayOptions: { show: { resource: ['ephemeris'], operation: ['bulkAction'] } },
+				default: 'active',
+				description: 'Status to set (only for update_status action)',
+			},
+
 			// ─── LIST FILTERS ─────────────────────────────────────────────
 			{
 				displayName: 'Filters',
@@ -1833,6 +2130,70 @@ export class TukiGrowth implements INodeType {
 					return [];
 				}
 			},
+			async getAudiences(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const orgId = this.getCurrentNodeParameter('organizationId') as string;
+					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					if (!orgId || !clientId) return [];
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/audiences`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return items.map((a: any) => ({ name: String(a.name ?? a._id), value: String(a._id) }));
+				} catch {
+					return [];
+				}
+			},
+			async getPainPoints(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const orgId = this.getCurrentNodeParameter('organizationId') as string;
+					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					if (!orgId || !clientId) return [];
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/pain-points`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return items.map((p: any) => ({ name: String(p.title ?? p._id), value: String(p._id) }));
+				} catch {
+					return [];
+				}
+			},
+			async getAds(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const orgId = this.getCurrentNodeParameter('organizationId') as string;
+					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					if (!orgId || !clientId) return [];
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/ads/ads`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return items.map((a: any) => ({ name: String(a.headline ?? a._id), value: String(a._id) }));
+				} catch {
+					return [];
+				}
+			},
+			async getKeywords(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const orgId = this.getCurrentNodeParameter('organizationId') as string;
+					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					if (!orgId || !clientId) return [];
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/ads/keywords`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return items.map((k: any) => ({ name: String(k.keyword ?? k._id), value: String(k._id) }));
+				} catch {
+					return [];
+				}
+			},
 		},
 	};
 
@@ -1881,6 +2242,40 @@ export class TukiGrowth implements INodeType {
 						});
 					}
 
+				// ── ORGANIZATION MEMBER ────────────────────────────────────────────
+				} else if (resource === 'organizationMember') {
+					const orgId = this.getNodeParameter('organizationId', i) as string;
+					const base = `${BASE_URL}/organizations/${orgId}/members`;
+
+					if (operation === 'list') {
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'GET', url: base, json: true,
+						});
+					} else if (operation === 'create') {
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'POST',
+							url: base,
+							body: {
+								email: this.getNodeParameter('memberEmail', i) as string,
+								role: this.getNodeParameter('memberRole', i) as string,
+							},
+							json: true,
+						});
+					} else if (operation === 'update') {
+						const userId = this.getNodeParameter('memberUserId', i) as string;
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'PATCH',
+							url: `${base}/${userId}`,
+							body: { role: this.getNodeParameter('memberRole', i) as string },
+							json: true,
+						});
+					} else if (operation === 'delete') {
+						const userId = this.getNodeParameter('memberUserId', i) as string;
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'DELETE', url: `${base}/${userId}`, json: true,
+						});
+					}
+
 				// ── CLIENT ────────────────────────────────────────────────
 				} else if (resource === 'client') {
 					const orgId = this.getNodeParameter('organizationId', i) as string;
@@ -1925,6 +2320,40 @@ export class TukiGrowth implements INodeType {
 						});
 					}
 
+				// ── CLIENT MEMBER ──────────────────────────────────────────
+				} else if (resource === 'clientMember') {
+					const orgId = this.getNodeParameter('organizationId', i) as string;
+					const clientId = this.getNodeParameter('clientIdSelect', i) as string;
+					const base = `${BASE_URL}/organizations/${orgId}/clients/${clientId}/members`;
+
+					if (operation === 'list') {
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'GET', url: base, json: true,
+						});
+					} else if (operation === 'create') {
+						const body: Record<string, any> = {
+							email: this.getNodeParameter('clientMemberEmail', i) as string,
+						};
+						const roleOverride = this.getNodeParameter('roleOverride', i, '') as string;
+						if (roleOverride) body.roleOverride = roleOverride;
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'POST', url: base, body, json: true,
+						});
+					} else if (operation === 'update') {
+						const memberId = this.getNodeParameter('clientMemberId', i) as string;
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'PATCH',
+							url: `${base}/${memberId}`,
+							body: { role: this.getNodeParameter('clientMemberRole', i) as string },
+							json: true,
+						});
+					} else if (operation === 'delete') {
+						const memberId = this.getNodeParameter('clientMemberId', i) as string;
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'DELETE', url: `${base}/${memberId}`, json: true,
+						});
+					}
+
 				// ── BUSINESS CONTEXT ──────────────────────────────────────
 				} else if (resource === 'businessContext') {
 					const orgId = this.getNodeParameter('organizationId', i) as string;
@@ -1948,64 +2377,166 @@ export class TukiGrowth implements INodeType {
 					const clientId = this.getNodeParameter('clientIdSelect', i) as string;
 					const moduleBase = `${BASE_URL}/organizations/${orgId}/clients/${clientId}`;
 
-					const resourcePaths: Record<string, string> = {
-						objective: 'strategy/objectives',
-						audience: 'strategy/audiences',
-						painPoint: 'strategy/pain-points',
-						contentBrief: 'content/briefs',
-						socialMedia: 'content/rrss',
-						websiteContent: 'content/website',
-						asset: 'content/assets',
-						ephemeris: 'content/ephemerides',
-						category: 'ecommerce/categories',
-						product: 'ecommerce/products',
-						customer: 'ecommerce/customers',
-						order: 'ecommerce/orders',
-						service: 'services/services',
-						package: 'services/packages',
-						project: 'services/projects',
-						campaign: 'ads/campaigns',
-						ad: 'ads/ads',
-						keyword: 'ads/keywords',
-						newsletter: 'email/newsletters',
-						emailReport: 'email/reports',
-						opportunity: 'pr-speaking/opportunities',
-						comment: 'comments',
-					};
+					// Handle audience pain points (nested resource)
+					if (resource === 'audiencePainPoint') {
+						const audienceId = this.getNodeParameter('audienceId', i) as string;
+						const endpointBase = `${moduleBase}/strategy/audiences/${audienceId}/pain-points`;
 
-					const resourcePath = resourcePaths[resource];
-					if (!resourcePath) {
-						throw new NodeOperationError(this.getNode(), `Unknown resource: ${resource}`, { itemIndex: i });
-					}
+						if (operation === 'list') {
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: endpointBase, json: true,
+							});
+						} else if (operation === 'create') {
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST',
+								url: endpointBase,
+								body: {
+									painPointId: this.getNodeParameter('painPointIdToLink', i) as string,
+									relevanceScore: this.getNodeParameter('relevanceScore', i, 5) as number,
+								},
+								json: true,
+							});
+						} else if (operation === 'update') {
+							const linkId = this.getNodeParameter('painPointLinkId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'PATCH',
+								url: endpointBase,
+								body: {
+									linkId,
+									relevanceScore: this.getNodeParameter('relevanceScore', i) as number,
+								},
+								json: true,
+							});
+						} else if (operation === 'delete') {
+							const linkId = this.getNodeParameter('painPointLinkId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'DELETE',
+								url: `${endpointBase}?linkId=${linkId}`,
+								json: true,
+							});
+						}
 
-					const endpointBase = `${moduleBase}/${resourcePath}`;
+					// Handle ad keywords (nested resource)
+					} else if (resource === 'adKeyword') {
+						const adId = this.getNodeParameter('adIdForKeyword', i) as string;
+						const endpointBase = `${moduleBase}/ads/ads/${adId}/keywords`;
 
-					if (operation === 'list') {
-						const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
-						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-							method: 'GET', url: endpointBase, qs, json: true,
-						});
-					} else if (operation === 'get') {
-						const recordId = this.getNodeParameter('recordId', i) as string;
-						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-							method: 'GET', url: `${endpointBase}/${recordId}`, json: true,
-						});
-					} else if (operation === 'create') {
-						const body = buildCreateBody(resource, this, i);
-						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-							method: 'POST', url: endpointBase, body, json: true,
-						});
-					} else if (operation === 'update') {
-						const recordId = this.getNodeParameter('recordId', i) as string;
-						const body = buildUpdateBody(resource, this, i);
-						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-							method: 'PATCH', url: `${endpointBase}/${recordId}`, body, json: true,
-						});
-					} else if (operation === 'delete') {
-						const recordId = this.getNodeParameter('recordId', i) as string;
-						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-							method: 'DELETE', url: `${endpointBase}/${recordId}`, json: true,
-						});
+						if (operation === 'list') {
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: endpointBase, json: true,
+							});
+						} else if (operation === 'create') {
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST',
+								url: endpointBase,
+								body: { keywordId: this.getNodeParameter('keywordIdToLink', i) as string },
+								json: true,
+							});
+						} else if (operation === 'delete') {
+							const linkId = this.getNodeParameter('keywordLinkId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'DELETE',
+								url: `${endpointBase}?linkId=${linkId}`,
+								json: true,
+							});
+						}
+
+					// Standard module resources
+					} else {
+						const resourcePaths: Record<string, string> = {
+							objective: 'strategy/objectives',
+							audience: 'strategy/audiences',
+							painPoint: 'strategy/pain-points',
+							contentBrief: 'content/briefs',
+							socialMedia: 'content/rrss',
+							websiteContent: 'content/website',
+							asset: 'content/assets',
+							ephemeris: 'content/ephemerides',
+							category: 'ecommerce/categories',
+							product: 'ecommerce/products',
+							customer: 'ecommerce/customers',
+							order: 'ecommerce/orders',
+							service: 'services/services',
+							package: 'services/packages',
+							project: 'services/projects',
+							campaign: 'ads/campaigns',
+							ad: 'ads/ads',
+							keyword: 'ads/keywords',
+							newsletter: 'email/newsletters',
+							emailReport: 'email/reports',
+							opportunity: 'pr-speaking/opportunities',
+							comment: 'comments',
+						};
+
+						const resourcePath = resourcePaths[resource];
+						if (!resourcePath) {
+							throw new NodeOperationError(this.getNode(), `Unknown resource: ${resource}`, { itemIndex: i });
+						}
+
+						const endpointBase = `${moduleBase}/${resourcePath}`;
+
+						if (operation === 'list') {
+							const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: endpointBase, qs, json: true,
+							});
+						} else if (operation === 'get') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: `${endpointBase}/${recordId}`, json: true,
+							});
+						} else if (operation === 'create') {
+							const body = buildCreateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: endpointBase, body, json: true,
+							});
+						} else if (operation === 'update') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							const body = buildUpdateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'PATCH', url: `${endpointBase}/${recordId}`, body, json: true,
+							});
+						} else if (operation === 'delete') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'DELETE', url: `${endpointBase}/${recordId}`, json: true,
+							});
+						} else if (resource === 'ephemeris') {
+							// Special ephemeris operations
+							if (operation === 'listByMonth') {
+								const month = this.getNodeParameter('ephemerisMonth', i) as number;
+								const year = this.getNodeParameter('ephemerisYear', i) as number;
+								response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+									method: 'GET',
+									url: `${endpointBase}/by-month`,
+									qs: { month, year },
+									json: true,
+								});
+							} else if (operation === 'listUpcoming') {
+								const limit = this.getNodeParameter('ephemerisLimit', i, 10) as number;
+								const daysAhead = this.getNodeParameter('ephemerisDaysAhead', i, 30) as number;
+								response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+									method: 'GET',
+									url: `${endpointBase}/upcoming`,
+									qs: { limit, daysAhead },
+									json: true,
+								});
+							} else if (operation === 'bulkAction') {
+								const action = this.getNodeParameter('ephemerisBulkAction', i) as string;
+								const idsStr = this.getNodeParameter('ephemerisBulkIds', i) as string;
+								const ids = idsStr.split(',').map((id) => id.trim());
+								const body: Record<string, any> = { action, ids };
+								if (action === 'update_status') {
+									body.status = this.getNodeParameter('ephemerisBulkStatus', i) as string;
+								}
+								response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+									method: 'POST',
+									url: `${endpointBase}/bulk`,
+									body,
+									json: true,
+								});
+							}
+						}
 					}
 				}
 
