@@ -306,6 +306,30 @@ POST   .../content/ephemerides/bulk
 
 **Bulk body:** `{ "action": "delete|update_status", "ids": ["..."], "status": "active|archived" }`
 
+#### Reference Content
+
+```
+GET    .../content/reference                          → list (?status= ?categoryId= ?priority= ?mediaType=)
+POST   .../content/reference                          → create
+GET    .../content/reference/{id}                     → get
+PATCH  .../content/reference/{id}                     → update
+DELETE .../content/reference/{id}                     → delete
+```
+
+#### Reference Content Categories
+
+```
+GET    .../content/reference/categories               → list (sorted by order asc)
+POST   .../content/reference/categories               → create (order auto-assigned)
+PATCH  .../content/reference/categories/{id}          → update
+DELETE .../content/reference/categories/{id}          → delete (body: { targetCategoryId? })
+```
+
+> Deleting a category with `targetCategoryId` reassigns its references to that target category. Response: `{ "data": { "reassignedCount": N } }`.
+> If the category has associated items and no `targetCategoryId` is provided, returns an error.
+
+> **Note:** `bulkUpdateStatus` and `bulkDelete` mutations exist in Convex but are **not exposed via REST** — only accessible from the frontend via direct Convex client calls.
+
 ---
 
 ### E-commerce Module
@@ -415,13 +439,6 @@ POST   .../ads/ads/{id}/keywords              → { keywordId }
 DELETE .../ads/ads/{id}/keywords?linkId={id}
 ```
 
-**Ad keywords (many-to-many):**
-```
-GET    .../ads/ads/{id}/keywords              → list linked keywords
-POST   .../ads/ads/{id}/keywords              → { keywordId } to link
-DELETE .../ads/ads/{id}/keywords?linkId={id}  → unlink keyword
-```
-
 #### Keywords (library)
 
 ```
@@ -474,6 +491,35 @@ POST   .../pr-speaking/opportunities/bulk
 **List filters:** `?stage=` and `?type=`
 
 **Bulk body:** `{ "action": "move_stage", "ids": ["..."], "stage": "confirmed" }`
+
+---
+
+### CRM / Leads Module
+
+#### Leads
+
+```
+GET    .../crm/leads                                  → list (?statusKey= ?sourceId= ?assignedTo=)
+POST   .../crm/leads                                  → create
+GET    .../crm/leads/{id}                             → get
+PATCH  .../crm/leads/{id}                             → update
+DELETE .../crm/leads/{id}                             → soft-delete
+POST   .../crm/leads/{id}/restore                     → restore soft-deleted lead
+POST   .../crm/leads/bulk                             → bulk operations
+```
+
+**Bulk body:** `{ "action": "update_status|assign|remove|restore", "ids": ["..."], "statusKey?": "new", "assignedTo?": "PROFILE_ID" }`
+
+#### Lead Sources
+
+```
+GET    .../crm/lead-sources                           → list
+POST   .../crm/lead-sources                           → create
+PATCH  .../crm/lead-sources/{id}                      → update
+DELETE .../crm/lead-sources/{id}                      → delete (body: { targetSourceId })
+```
+
+> Deleting a source with `targetSourceId` reassigns its leads to that target source.
 
 ---
 
@@ -537,7 +583,7 @@ curl ".../ecommerce/orders?status=pending" \
 - **OpenAPI spec**: available at `/api/docs/spec` (JSON) and browsable docs at `/api/docs`
 - **Auto-managed fields**: `createdAt`, `updatedAt`, `createdBy`, `updatedBy` — never send these
 - **clientId / organizationId**: always come from the URL, never include in body
-- **Default statuses on create**: objectives → `planned`, briefs → `idea`, social/website → `idea`, clients → `active`
+- **Default statuses on create**: objectives → `planned`, briefs → `idea`, social/website → `idea`, clients → `active`, leads → `new`, PR opportunities → `idea`, reference content → `idea`
 
 When this skill is used, prefer the OpenAPI spec over memorized examples if there is any discrepancy.
 
@@ -971,3 +1017,114 @@ Fields marked `*` are required. All others are optional.
 **POST** `{ "body"*: "Comment text", "tableName": "contentBriefs", "recordId": "ID" }`
 
 **PATCH** `{ "body": "Updated text", "isResolved": false }`
+
+---
+
+### Content — Reference Content
+
+**POST**
+```json
+{
+  "title": "*",
+  "mediaType": "* link|text|image|video|file",
+  "priority": "* low|medium|high|critical",
+  "description": "",
+  "url": "",
+  "media": [{ "type": "image|video", "url": "", "thumbnail": "", "caption": "", "order": 0 }],
+  "categoryId": "",
+  "proposedBy": "",
+  "purpose": "",
+  "status": "idea|draft|review|approved|archived"
+}
+```
+
+**PATCH** — any of the above fields
+
+---
+
+### Content — Reference Content Category
+
+**POST**
+```json
+{
+  "name": "*",
+  "color": "*"
+}
+```
+
+> `order` is auto-assigned (incremented from current max) — do not send it.
+
+**PATCH** `{ name, color, order }`
+
+---
+
+### CRM — Lead
+
+**POST**
+```json
+{
+  "email": "*",
+  "firstName": "",
+  "lastName": "",
+  "phone": "",
+  "companyName": "",
+  "sourceId": "",
+  "campaign": "",
+  "leadScore": 0,
+  "statusKey": "new",
+  "assignedTo": "",
+  "lastContactAt": 1700000000000,
+  "nextFollowUpAt": 1700000000000,
+  "notes": ""
+}
+```
+
+**PATCH** — any of the above fields (except `email`)
+
+> `statusKey` is dynamic, validated against the client's workflow config. Default on create is `"new"`.
+
+---
+
+### CRM — Lead Source
+
+**POST**
+```json
+{
+  "name": "*",
+  "color": "*"
+}
+```
+
+**PATCH** `{ name, color }`
+
+**DELETE** `{ "targetSourceId": "ID" }` — reassigns leads before deleting
+
+---
+
+### PR & Speaking — Opportunity
+
+**POST**
+```json
+{
+  "title": "*",
+  "type": "* podcast|event|media|webinar|live|other",
+  "priority": "* low|medium|high|critical",
+  "stage": "idea|researching|pitched|in_conversation|confirmed|published_or_delivered|repurposed|closed",
+  "fitScore": 50,
+  "targetAudienceMatch": 50,
+  "authorityLevel": "low|medium|high|top",
+  "platform": "",
+  "audienceSizeEstimate": 0,
+  "ownerId": "",
+  "primaryContact": "",
+  "topicAngle": "",
+  "primaryCta": "",
+  "scheduledAt": 1700000000000,
+  "publishedAt": 1700000000000,
+  "notes": ""
+}
+```
+
+**PATCH** — any of the above fields
+
+**Defaults on create:** `stage` → `"idea"`, `fitScore` → `50`, `targetAudienceMatch` → `50`, `authorityLevel` → `"medium"`

@@ -96,10 +96,8 @@ function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 		body.body = ef.getNodeParameter('commentBody', i) as string;
 	} else if (resource === 'referenceContent') {
 		body.title = ef.getNodeParameter('referenceContentTitle', i) as string;
-		const url = ef.getNodeParameter('referenceContentUrl', i, '') as string;
-		if (url) body.url = url;
-		const type = ef.getNodeParameter('referenceContentType', i, 'article') as string;
-		if (type) body.type = type;
+		body.mediaType = ef.getNodeParameter('referenceContentMediaType', i) as string;
+		body.priority = ef.getNodeParameter('referenceContentPriority', i) as string;
 	}
 
 	return { ...body, ...additionalFields };
@@ -150,6 +148,14 @@ export class TukiGrowth implements INodeType {
 		outputs: ['main'],
 		credentials: [{ name: 'tukiGrowthApi', required: true }],
 		properties: [
+			// ─── DEBUG OPTION ─────────────────────────────────────────────
+			{
+				displayName: 'Debug Mode',
+				name: 'debugMode',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to include debug information (endpoint URL, request body) in the output',
+			},
 			// ─── RESOURCE ────────────────────────────────────────────────
 			{
 				displayName: 'Resource',
@@ -2026,7 +2032,7 @@ export class TukiGrowth implements INodeType {
 			displayOptions: { show: { resource: ['referenceContent'], operation: ['get', 'update', 'delete'] } },
 			default: '',
 			required: true,
-			description: 'ID of the reference content',
+			description: 'ID of the reference reference content',
 		},
 		{
 			displayName: 'Title',
@@ -2038,28 +2044,88 @@ export class TukiGrowth implements INodeType {
 			description: 'Title of the reference content',
 		},
 		{
-			displayName: 'URL',
-			name: 'referenceContentUrl',
-			type: 'string',
-			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
-			default: '',
-			description: 'URL of the reference content',
-		},
-		{
-			displayName: 'Type',
-			name: 'referenceContentType',
+			displayName: 'Media Type',
+			name: 'referenceContentMediaType',
 			type: 'options',
 			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
 			options: [
-				{ name: 'Article', value: 'article' },
-				{ name: 'Video', value: 'video' },
-				{ name: 'Document', value: 'document' },
-				{ name: 'Image', value: 'image' },
 				{ name: 'Link', value: 'link' },
-				{ name: 'Other', value: 'other' },
+				{ name: 'Text', value: 'text' },
+				{ name: 'Image', value: 'image' },
+				{ name: 'Video', value: 'video' },
+				{ name: 'File', value: 'file' },
 			],
-			default: 'article',
-			description: 'Type of reference content',
+			default: 'link',
+			required: true,
+			description: 'Media type of the reference content',
+		},
+		{
+			displayName: 'Priority',
+			name: 'referenceContentPriority',
+			type: 'options',
+			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
+			options: [
+				{ name: 'Low', value: 'low' },
+				{ name: 'Medium', value: 'medium' },
+				{ name: 'High', value: 'high' },
+				{ name: 'Critical', value: 'critical' },
+			],
+			default: 'medium',
+			required: true,
+			description: 'Priority of the reference content',
+		},
+		{
+			displayName: 'Additional Fields',
+			name: 'additionalFields',
+			type: 'collection',
+			placeholder: 'Add Field',
+			default: {},
+			displayOptions: { show: { resource: ['referenceContent'], operation: ['create', 'update'] } },
+			options: [
+				{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+				{ displayName: 'URL', name: 'url', type: 'string', default: '' },
+				{ displayName: 'Category ID', name: 'categoryId', type: 'string', default: '' },
+				{ displayName: 'Proposed By', name: 'proposedBy', type: 'string', default: '' },
+				{ displayName: 'Purpose', name: 'purpose', type: 'string', default: '' },
+				{
+					displayName: 'Status',
+					name: 'status',
+					type: 'options',
+					options: [
+						{ name: 'Idea', value: 'idea' },
+						{ name: 'Draft', value: 'draft' },
+						{ name: 'Review', value: 'review' },
+						{ name: 'Approved', value: 'approved' },
+						{ name: 'Archived', value: 'archived' },
+					],
+					default: 'idea',
+				},
+				{
+					displayName: 'Media Type',
+					name: 'mediaType',
+					type: 'options',
+					options: [
+						{ name: 'Link', value: 'link' },
+						{ name: 'Text', value: 'text' },
+						{ name: 'Image', value: 'image' },
+						{ name: 'Video', value: 'video' },
+						{ name: 'File', value: 'file' },
+					],
+					default: 'link',
+				},
+				{
+					displayName: 'Priority',
+					name: 'priority',
+					type: 'options',
+					options: [
+						{ name: 'Low', value: 'low' },
+						{ name: 'Medium', value: 'medium' },
+						{ name: 'High', value: 'high' },
+						{ name: 'Critical', value: 'critical' },
+					],
+					default: 'medium',
+				},
+			],
 		},
 			// ─── EPHEMERIS BY MONTH FIELDS ─────────────────────────────────────
 			{
@@ -2151,7 +2217,7 @@ export class TukiGrowth implements INodeType {
 							'category', 'product', 'customer', 'order',
 							'service', 'package', 'project',
 							'campaign', 'ad', 'keyword',
-							'newsletter', 'emailReport', 'opportunity', 'comment',
+							'newsletter', 'emailReport', 'opportunity', 'comment', 'referenceContent',
 					],
 						operation: ['list'],
 					},
@@ -2269,10 +2335,12 @@ export class TukiGrowth implements INodeType {
 
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
+		const debug = this.getNodeParameter('debug', 0, false) as boolean;
 
 		for (let i = 0; i < items.length; i++) {
 			try {
 				let response: any;
+				let requestDebugInfo: { url: string; method: string; body?: any; qs?: any } | null = null;
 
 				// ── ORGANIZATION ──────────────────────────────────────────
 				if (resource === 'organization') {
@@ -2532,7 +2600,7 @@ export class TukiGrowth implements INodeType {
 							emailReport: 'email/reports',
 							opportunity: 'pr-speaking/opportunities',
 							comment: 'comments',
-							referenceContent: 'reference-content',
+							referenceContent: 'content/reference',
 						};
 
 						const resourcePath = resourcePaths[resource];
@@ -2612,6 +2680,12 @@ export class TukiGrowth implements INodeType {
 					this.helpers.returnJsonArray(data),
 					{ itemData: { item: i } },
 				);
+				// Add debug info if enabled
+				if (debug && requestDebugInfo) {
+					for (const item of executionData) {
+						item.json._debug = requestDebugInfo;
+					}
+				}
 				returnData.push(...executionData);
 
 			} catch (error: any) {
