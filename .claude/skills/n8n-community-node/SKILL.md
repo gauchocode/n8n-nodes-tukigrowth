@@ -30,7 +30,7 @@ npx n8n-node create
 # - Package name: n8n-nodes-myapi
 # - Description: Your description
 # - Author: Your name
-# - License: MIT (recommended)
+# - License: MIT (required for verification)
 ```
 
 This generates:
@@ -69,6 +69,10 @@ n8n-nodes-myapi/
 
 To publish as a **verified community node** (appears in n8n's community node repository), you **MUST** follow these constraints:
 
+### Node Eligibility
+- **Must NOT duplicate existing nodes**: If your node is an iteration on an existing n8n node, submit a pull request to the n8n repo instead.
+- **No Logic/Flow control nodes**: n8n is not accepting Logic or Flow control community nodes for verification at this time.
+
 ### Technical Constraints
 - **NO runtime dependencies**: Only `devDependencies` allowed in package.json. All code must be bundled or use n8n's internal libraries.
 - **NO file system access**: Do not use `fs`, `path`, or `os` modules.
@@ -81,6 +85,18 @@ To publish as a **verified community node** (appears in n8n's community node rep
 - **MUST include keyword**: `"n8n-community-node-package"` (CRITICAL: Without this, your node will not appear in the community registry)
 - Must include `n8n` object in package.json linking to compiled files
 - Must pass official linter: `npx @n8n/scan-community-package n8n-nodes-myapi`
+- **License must be MIT** (not just recommended - required for verification)
+
+### Source Verification
+- npm package `repository.url` must match the actual GitHub repository
+- Package author/maintainer must match between npm and GitHub
+- Git link in npm must work and the repository must be **public**
+- **Must be published from a GitHub Action with provenance** (mandatory from May 1st 2026)
+
+### English Only
+- Both the node interface and all documentation must be in **English only**
+- This includes: parameter names, descriptions, help text, error messages, and README content
+- Do not use any other language in any user-facing text
 
 ## package.json Configuration
 
@@ -1006,6 +1022,40 @@ npx @n8n/scan-community-package n8n-nodes-myapi
 
 ## Publishing to npm
 
+### ⚠️ GitHub Actions with Provenance (Required from May 1st 2026)
+
+n8n requires ALL community nodes to be published via a **GitHub Action with provenance**. This ensures supply chain security.
+
+**GitHub Actions workflow** (`.github/workflows/publish.yml`):
+```yaml
+name: Publish to npm
+on:
+  release:
+    types: [created]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run build
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+**Setup:**
+1. Add `NPM_TOKEN` as a GitHub secret (Settings → Secrets → Actions)
+2. Create a GitHub Release to trigger the workflow
+3. The `--provenance` flag generates a signed attestation linking the package to the source
+
 ### Step 1: Create npm Account
 1. Create account at https://www.npmjs.com
 2. Generate Access Token: Profile → Access Tokens → Generate New Token (Classic)
@@ -1145,12 +1195,19 @@ n8n-nodes-myapi/
 
 Before publishing:
 - [ ] `n8n-node create` used or structure matches official template
+- [ ] Node does NOT duplicate an existing n8n node (use PRs for iterations)
+- [ ] Node is NOT a Logic/Flow control node (not accepted for verification)
 - [ ] `MyApi.node.json` codex file exists with categories
 - [ ] `usableAsTool: true` set for AI Agent support
 - [ ] `action` property added to operation options (UX improvement)
 - [ ] `resourceLocator` type used for filter fields (AI Agent compatible dropdowns)
 - [ ] No runtime dependencies in package.json (only devDependencies)
 - [ ] Keyword `"n8n-community-node-package"` included in package.json
+- [ ] License is `"MIT"` (required, not optional)
+- [ ] Repository is public and npm `repository.url` matches
+- [ ] Author/maintainer matches between npm and GitHub
+- [ ] Published via GitHub Action with provenance (mandatory from May 1st 2026)
+- [ ] All text is English only (parameters, descriptions, errors, README)
 - [ ] `httpRequestWithAuthentication` used instead of manual header injection
 - [ ] Error handling uses `NodeApiError` for HTTP errors, `NodeOperationError` for user errors
 - [ ] Item linking implemented with `constructExecutionMetaData`
@@ -1159,14 +1216,19 @@ Before publishing:
 - [ ] Credentials include `test` configuration
 - [ ] ESLint passes with no errors
 - [ ] `@n8n/scan-community-package` passes without errors
-- [ ] README.md with installation and usage instructions
+- [ ] README.md with installation, usage instructions, and auth details
 - [ ] Code organized appropriately (monolithic vs modular based on complexity)
 
 ## Common Mistakes
 
 | Mistake | Fix |
 |---------|-----|
+| Duplicating an existing n8n node | Submit a PR to n8n instead of creating a new community node |
+| Creating a Logic/Flow control node | n8n doesn't accept these for verification |
 | Missing `n8n-community-node-package` keyword | Add to package.json keywords - **CRITICAL** for registry visibility |
+| Non-MIT license | Must be `"MIT"` for verification |
+| Non-English text in node | All UI text, descriptions, errors, and docs must be English only |
+| Missing provenance in publish | Use GitHub Action with provenance (mandatory from May 1st 2026) |
 | Runtime dependencies in package.json | Remove from `dependencies`, only use `devDependencies` |
 | Missing `usableAsTool: true` | Add to node description for AI Agent support |
 | Missing `action` property on operations | Add `action: 'List items'` to each operation option |
@@ -1176,3 +1238,4 @@ Before publishing:
 | Publishing without building | Always `pnpm build` before `npm publish` |
 | Using `fs`, `path`, `process.env` | NOT ALLOWED in verified community nodes |
 | Missing codex file | Create `MyApi.node.json` with categories |
+| Private repository | Repository must be public for verification |
