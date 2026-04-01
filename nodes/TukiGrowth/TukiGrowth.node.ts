@@ -94,6 +94,12 @@ function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 		body.type = ef.getNodeParameter('opportunityType', i) as string;
 	} else if (resource === 'comment') {
 		body.body = ef.getNodeParameter('commentBody', i) as string;
+	} else if (resource === 'referenceContent') {
+		body.title = ef.getNodeParameter('referenceContentTitle', i) as string;
+		const url = ef.getNodeParameter('referenceContentUrl', i, '') as string;
+		if (url) body.url = url;
+		const type = ef.getNodeParameter('referenceContentType', i, 'article') as string;
+		if (type) body.type = type;
 	}
 
 	return { ...body, ...additionalFields };
@@ -103,7 +109,7 @@ function buildUpdateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	const additionalFields = ef.getNodeParameter('additionalFields', i, {}) as Record<string, any>;
 	const body: Record<string, any> = {};
 
-	if (['objective', 'painPoint', 'contentBrief', 'ephemeris', 'opportunity'].includes(resource)) {
+	if (['objective', 'painPoint', 'contentBrief', 'ephemeris', 'opportunity', 'referenceContent'].includes(resource)) {
 		const title = ef.getNodeParameter('title', i, '') as string;
 		if (title) body.title = title;
 	} else if (['audience', 'asset', 'product', 'campaign', 'category', 'service', 'package', 'project'].includes(resource)) {
@@ -180,8 +186,9 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Client Member', value: 'clientMember' },
 					{ name: 'Audience Pain Point', value: 'audiencePainPoint' },
 					{ name: 'Ad Keyword', value: 'adKeyword' },
+					{ name: 'Reference Content', value: 'referenceContent' },
 				],
-				default: 'organization',
+					default: 'organization',
 			},
 
 			// ─── OPERATIONS ──────────────────────────────────────────────
@@ -613,6 +620,21 @@ export class TukiGrowth implements INodeType {
 				],
 				default: 'list',
 			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['referenceContent'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List reference content' },
+					{ name: 'Get', value: 'get', action: 'Get a reference content' },
+					{ name: 'Create', value: 'create', action: 'Create a reference content' },
+					{ name: 'Update', value: 'update', action: 'Update a reference content' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a reference content' },
+				],
+				default: 'list',
+			},
 
 			// ─── SHARED: ORGANIZATION ID (dropdown) ──────────────────────
 			{
@@ -629,8 +651,8 @@ export class TukiGrowth implements INodeType {
 							'service', 'package', 'project',
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
-							'organizationMember', 'clientMember', 'audiencePainPoint', 'adKeyword',
-						],
+							'organizationMember', 'clientMember', 'audiencePainPoint', 'adKeyword', 'referenceContent',
+					],
 					},
 				},
 				default: '',
@@ -653,8 +675,8 @@ export class TukiGrowth implements INodeType {
 							'service', 'package', 'project',
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
-							'clientMember', 'audiencePainPoint', 'adKeyword',
-						],
+							'clientMember', 'audiencePainPoint', 'adKeyword', 'referenceContent',
+					],
 					},
 				},
 				default: '',
@@ -763,7 +785,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Active', value: 'active' },
 							{ name: 'Paused', value: 'paused' },
 							{ name: 'Archived', value: 'archived' },
-						],
+					],
 						default: 'active',
 					},
 				],
@@ -781,7 +803,7 @@ export class TukiGrowth implements INodeType {
 							'websiteContent', 'asset', 'ephemeris', 'category', 'product', 'customer', 'order',
 							'service', 'package', 'project', 'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
-						],
+					],
 						operation: ['get', 'update', 'delete'],
 					},
 				},
@@ -818,7 +840,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Informal', value: 'informal' },
 							{ name: 'Technical', value: 'technical' },
 							{ name: 'Friendly', value: 'friendly' },
-						],
+					],
 						default: 'semiformal',
 					},
 				],
@@ -873,7 +895,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'In Progress', value: 'in_progress' },
 							{ name: 'Completed', value: 'completed' },
 							{ name: 'Archived', value: 'archived' },
-						],
+					],
 						default: 'planned',
 					},
 				],
@@ -939,7 +961,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Low', value: 'low' }, { name: 'Medium', value: 'medium' },
 							{ name: 'High', value: 'high' }, { name: 'Critical', value: 'critical' },
-						],
+					],
 						default: 'medium',
 					},
 				],
@@ -979,7 +1001,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Idea', value: 'idea' }, { name: 'In Progress', value: 'in_progress' },
 							{ name: 'Review', value: 'review' }, { name: 'Approved', value: 'approved' },
 							{ name: 'Rejected', value: 'rejected' }, { name: 'Archived', value: 'archived' },
-						],
+					],
 						default: 'idea',
 					},
 				],
@@ -1054,7 +1076,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'To Approve', value: 'to_approve' }, { name: 'Approved', value: 'approved' },
 							{ name: 'Scheduled', value: 'scheduled' }, { name: 'Published', value: 'published' },
 							{ name: 'Discarded', value: 'discarded' },
-						],
+					],
 						default: 'idea',
 					},
 				],
@@ -1097,7 +1119,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Low', value: 'low' }, { name: 'Medium', value: 'medium' },
 							{ name: 'High', value: 'high' }, { name: 'Critical', value: 'critical' },
-						],
+					],
 						default: 'medium',
 					},
 					{
@@ -1108,7 +1130,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Idea', value: 'idea' }, { name: 'Draft', value: 'draft' },
 							{ name: 'To Approve', value: 'to_approve' }, { name: 'Approved', value: 'approved' },
 							{ name: 'Published', value: 'published' }, { name: 'Discarded', value: 'discarded' },
-						],
+					],
 						default: 'idea',
 					},
 				],
@@ -1184,7 +1206,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Active', value: 'active' },
 							{ name: 'Archived', value: 'archived' },
-						],
+					],
 						default: 'active',
 					},
 				],
@@ -1272,7 +1294,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Draft', value: 'draft' }, { name: 'Active', value: 'active' },
 							{ name: 'Inactive', value: 'inactive' }, { name: 'Archived', value: 'archived' },
-						],
+					],
 						default: 'draft',
 					},
 				],
@@ -1354,7 +1376,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Pending', value: 'pending' }, { name: 'Processing', value: 'processing' },
 							{ name: 'Completed', value: 'completed' }, { name: 'Cancelled', value: 'cancelled' },
 							{ name: 'Refunded', value: 'refunded' },
-						],
+					],
 						default: 'pending',
 					},
 				],
@@ -1453,7 +1475,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Paused', value: 'paused' },
 							{ name: 'Completed', value: 'completed' },
 							{ name: 'Cancelled', value: 'cancelled' },
-						],
+					],
 						default: 'active',
 					},
 				],
@@ -1512,7 +1534,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Planned', value: 'planned' }, { name: 'Active', value: 'active' },
 							{ name: 'Paused', value: 'paused' }, { name: 'Finished', value: 'finished' },
-						],
+					],
 						default: 'planned',
 					},
 				],
@@ -1564,7 +1586,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Active', value: 'active' },
 							{ name: 'Paused', value: 'paused' },
 							{ name: 'Rejected', value: 'rejected' },
-						],
+					],
 						default: 'draft',
 					},
 				],
@@ -1611,7 +1633,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Non-Branded', value: 'non_branded' },
 							{ name: 'Negative', value: 'negative' },
 							{ name: 'Brand', value: 'brand' },
-						],
+					],
 						default: 'non_branded',
 					},
 				],
@@ -1656,7 +1678,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Draft', value: 'draft' }, { name: 'Scheduled', value: 'scheduled' },
 							{ name: 'Sent', value: 'sent' }, { name: 'Cancelled', value: 'cancelled' },
-						],
+					],
 						default: 'draft',
 					},
 				],
@@ -1789,7 +1811,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Confirmed', value: 'confirmed' },
 							{ name: 'Completed', value: 'completed' },
 							{ name: 'Cancelled', value: 'cancelled' },
-						],
+					],
 						default: 'identified',
 					},
 					{
@@ -1802,7 +1824,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Media', value: 'media' },
 							{ name: 'Speaking', value: 'speaking' },
 							{ name: 'Other', value: 'other' },
-						],
+					],
 						default: 'other',
 					},
 				],
@@ -1995,6 +2017,50 @@ export class TukiGrowth implements INodeType {
 				description: 'Keyword to link',
 			},
 
+
+		// ─── REFERENCE CONTENT FIELDS ─────────────────────────────────────────
+		{
+			displayName: 'Reference Content ID',
+			name: 'referenceContentId',
+			type: 'string',
+			displayOptions: { show: { resource: ['referenceContent'], operation: ['get', 'update', 'delete'] } },
+			default: '',
+			required: true,
+			description: 'ID of the reference content',
+		},
+		{
+			displayName: 'Title',
+			name: 'referenceContentTitle',
+			type: 'string',
+			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
+			default: '',
+			required: true,
+			description: 'Title of the reference content',
+		},
+		{
+			displayName: 'URL',
+			name: 'referenceContentUrl',
+			type: 'string',
+			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
+			default: '',
+			description: 'URL of the reference content',
+		},
+		{
+			displayName: 'Type',
+			name: 'referenceContentType',
+			type: 'options',
+			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
+			options: [
+				{ name: 'Article', value: 'article' },
+				{ name: 'Video', value: 'video' },
+				{ name: 'Document', value: 'document' },
+				{ name: 'Image', value: 'image' },
+				{ name: 'Link', value: 'link' },
+				{ name: 'Other', value: 'other' },
+			],
+			default: 'article',
+			description: 'Type of reference content',
+		},
 			// ─── EPHEMERIS BY MONTH FIELDS ─────────────────────────────────────
 			{
 				displayName: 'Month',
@@ -2086,7 +2152,7 @@ export class TukiGrowth implements INodeType {
 							'service', 'package', 'project',
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
-						],
+					],
 						operation: ['list'],
 					},
 				},
@@ -2466,6 +2532,7 @@ export class TukiGrowth implements INodeType {
 							emailReport: 'email/reports',
 							opportunity: 'pr-speaking/opportunities',
 							comment: 'comments',
+							referenceContent: 'reference-content',
 						};
 
 						const resourcePath = resourcePaths[resource];
