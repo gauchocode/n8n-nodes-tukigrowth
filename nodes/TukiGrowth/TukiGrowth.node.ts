@@ -2,6 +2,8 @@ import {
 	IExecuteFunctions,
 	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodeListSearchResult,
+	INodeParameterResourceLocator,
 	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
@@ -11,6 +13,13 @@ import {
 } from 'n8n-workflow';
 
 const BASE_URL = 'https://app.tukigrowth.com/api/v1';
+
+// Helper to extract value from resourceLocator (supports list and id modes)
+function getResourceLocatorValue(param: INodeParameterResourceLocator | string | undefined): string {
+	if (!param) return '';
+	if (typeof param === 'string') return param;
+	return (param.value as string) || '';
+}
 
 function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Record<string, any> {
 	const additionalFields = ef.getNodeParameter('additionalFields', i, {}) as Record<string, any>;
@@ -27,6 +36,7 @@ function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	} else if (resource === 'contentBrief') {
 		body.title = ef.getNodeParameter('title', i) as string;
 		body.funnelLevel = ef.getNodeParameter('funnelLevel', i) as string;
+		body.status = ef.getNodeParameter('contentBriefStatus', i) as string;
 	} else if (resource === 'socialMedia') {
 		body.title = ef.getNodeParameter('title', i) as string;
 		body.channel = ef.getNodeParameter('channel', i) as string;
@@ -92,12 +102,31 @@ function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	} else if (resource === 'opportunity') {
 		body.title = ef.getNodeParameter('title', i) as string;
 		body.type = ef.getNodeParameter('opportunityType', i) as string;
+		body.priority = ef.getNodeParameter('opportunityPriority', i) as string;
 	} else if (resource === 'comment') {
 		body.body = ef.getNodeParameter('commentBody', i) as string;
 	} else if (resource === 'referenceContent') {
 		body.title = ef.getNodeParameter('referenceContentTitle', i) as string;
 		body.mediaType = ef.getNodeParameter('referenceContentMediaType', i) as string;
 		body.priority = ef.getNodeParameter('referenceContentPriority', i) as string;
+	} else if (resource === 'referenceContentCategory') {
+		body.name = ef.getNodeParameter('categoryName', i) as string;
+		body.color = ef.getNodeParameter('categoryColor', i) as string;
+	} else if (resource === 'lead') {
+		body.email = ef.getNodeParameter('leadEmail', i) as string;
+	} else if (resource === 'leadSource') {
+		body.name = ef.getNodeParameter('leadSourceName', i) as string;
+		body.color = ef.getNodeParameter('leadSourceColor', i) as string;
+	} else if (resource === 'marketingStrategy') {
+		body.name = ef.getNodeParameter('strategyName', i) as string;
+	} else if (resource === 'strategyPillar') {
+		body.strategyId = getResourceLocatorValue(ef.getNodeParameter('parentStrategyId', i) as INodeParameterResourceLocator);
+		body.name = ef.getNodeParameter('pillarName', i) as string;
+		const desc = ef.getNodeParameter('pillarDescription', i, '') as string;
+		if (desc) body.description = desc;
+	} else if (resource === 'initiative') {
+		body.strategyId = ef.getNodeParameter('initiativeStrategyId', i) as string;
+		body.name = ef.getNodeParameter('initiativeName', i) as string;
 	}
 
 	return { ...body, ...additionalFields };
@@ -110,7 +139,7 @@ function buildUpdateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	if (['objective', 'painPoint', 'contentBrief', 'ephemeris', 'opportunity', 'referenceContent'].includes(resource)) {
 		const title = ef.getNodeParameter('title', i, '') as string;
 		if (title) body.title = title;
-	} else if (['audience', 'asset', 'product', 'campaign', 'category', 'service', 'package', 'project'].includes(resource)) {
+	} else if (['audience', 'asset', 'product', 'campaign', 'category', 'service', 'package', 'project', 'referenceContentCategory', 'leadSource'].includes(resource)) {
 		const name = ef.getNodeParameter('name', i, '') as string;
 		if (name) body.name = name;
 	} else if (resource === 'socialMedia' || resource === 'websiteContent') {
@@ -193,8 +222,17 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Audience Pain Point', value: 'audiencePainPoint' },
 					{ name: 'Ad Keyword', value: 'adKeyword' },
 					{ name: 'Reference Content', value: 'referenceContent' },
+					{ name: 'Reference Content Category', value: 'referenceContentCategory' },
+					{ name: 'Lead', value: 'lead' },
+					{ name: 'Lead Source', value: 'leadSource' },
+					{ name: 'Client Module', value: 'clientModule' },
+					{ name: 'Client Activity', value: 'clientActivity' },
+					{ name: 'Organization Activity', value: 'organizationActivity' },
+					{ name: 'Marketing Strategy', value: 'marketingStrategy' },
+					{ name: 'Strategy Pillar', value: 'strategyPillar' },
+					{ name: 'Strategic Initiative', value: 'initiative' },
 				],
-					default: 'organization',
+				default: 'organization',
 			},
 
 			// ─── OPERATIONS ──────────────────────────────────────────────
@@ -296,6 +334,7 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Create', value: 'create', action: 'Create a content brief' },
 					{ name: 'Update', value: 'update', action: 'Update a content brief' },
 					{ name: 'Delete', value: 'delete', action: 'Delete a content brief' },
+					{ name: 'Submit', value: 'submit', action: 'Submit a content brief' },
 				],
 				default: 'list',
 			},
@@ -554,6 +593,7 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Create', value: 'create', action: 'Create an opportunity' },
 					{ name: 'Update', value: 'update', action: 'Update an opportunity' },
 					{ name: 'Delete', value: 'delete', action: 'Delete an opportunity' },
+					{ name: 'Bulk Action', value: 'bulkAction', action: 'Bulk action on opportunities' },
 				],
 				default: 'list',
 			},
@@ -568,6 +608,7 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Create', value: 'create', action: 'Create a comment' },
 					{ name: 'Update', value: 'update', action: 'Update a comment' },
 					{ name: 'Delete', value: 'delete', action: 'Delete a comment' },
+					{ name: 'Resolve', value: 'resolve', action: 'Resolve a comment' },
 				],
 				default: 'list',
 			},
@@ -641,13 +682,137 @@ export class TukiGrowth implements INodeType {
 				],
 				default: 'list',
 			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['referenceContentCategory'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List reference content categories' },
+					{ name: 'Get', value: 'get', action: 'Get a reference content category' },
+					{ name: 'Create', value: 'create', action: 'Create a reference content category' },
+					{ name: 'Update', value: 'update', action: 'Update a reference content category' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a reference content category' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['lead'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List leads' },
+					{ name: 'Get', value: 'get', action: 'Get a lead' },
+					{ name: 'Create', value: 'create', action: 'Create a lead' },
+					{ name: 'Update', value: 'update', action: 'Update a lead' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a lead' },
+					{ name: 'Restore', value: 'restore', action: 'Restore a lead' },
+					{ name: 'Bulk Action', value: 'bulkAction', action: 'Bulk action on leads' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['leadSource'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List lead sources' },
+					{ name: 'Create', value: 'create', action: 'Create a lead source' },
+					{ name: 'Update', value: 'update', action: 'Update a lead source' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a lead source' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['clientModule'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List client modules' },
+					{ name: 'Toggle', value: 'toggle', action: 'Toggle a client module' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['clientActivity'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List client activity' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['organizationActivity'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List organization activity' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['marketingStrategy'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List marketing strategies' },
+					{ name: 'Get', value: 'get', action: 'Get a marketing strategy' },
+					{ name: 'Create', value: 'create', action: 'Create a marketing strategy' },
+					{ name: 'Update', value: 'update', action: 'Update a marketing strategy' },
+					{ name: 'Activate', value: 'activate', action: 'Activate a marketing strategy' },
+					{ name: 'Archive', value: 'archive', action: 'Archive a marketing strategy' },
+					{ name: 'Set Primary', value: 'setPrimary', action: 'Set as primary strategy' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['strategyPillar'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List strategy pillars' },
+					{ name: 'Create', value: 'create', action: 'Create a strategy pillar' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a strategy pillar' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['initiative'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List strategic initiatives' },
+					{ name: 'Get', value: 'get', action: 'Get a strategic initiative' },
+					{ name: 'Create', value: 'create', action: 'Create a strategic initiative' },
+					{ name: 'Update', value: 'update', action: 'Update a strategic initiative' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a strategic initiative' },
+				],
+				default: 'list',
+			},
 
 			// ─── SHARED: ORGANIZATION ID (dropdown) ──────────────────────
 			{
 				displayName: 'Organization',
 				name: 'organizationId',
-				type: 'options',
-				typeOptions: { loadOptionsMethod: 'getOrganizations' },
+				type: 'resourceLocator',
 				displayOptions: {
 					show: {
 						resource: [
@@ -658,20 +823,37 @@ export class TukiGrowth implements INodeType {
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
 							'organizationMember', 'clientMember', 'audiencePainPoint', 'adKeyword', 'referenceContent',
-					],
+							'referenceContentCategory', 'lead', 'leadSource',
+							'clientModule', 'clientActivity', 'organizationActivity',
+							'marketingStrategy', 'strategyPillar', 'initiative',
+						],
 					},
 				},
-				default: '',
-				required: true,
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: {
+							searchListMethod: 'getOrganizations',
+						},
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. 507f1f77bcf86cd799439011',
+					},
+				],
 				description: 'Organization to operate in',
 			},
 
-			// ─── SHARED: CLIENT ID (dropdown, for module resources) ───────
+			// ─── SHARED: CLIENT ID (dropdown or ID) ──────────────────────
 			{
 				displayName: 'Client',
 				name: 'clientIdSelect',
-				type: 'options',
-				typeOptions: { loadOptionsMethod: 'getClients' },
+				type: 'resourceLocator',
 				displayOptions: {
 					show: {
 						resource: [
@@ -682,11 +864,29 @@ export class TukiGrowth implements INodeType {
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
 							'clientMember', 'audiencePainPoint', 'adKeyword', 'referenceContent',
-					],
+							'referenceContentCategory', 'lead', 'leadSource',
+							'clientModule', 'clientActivity',
+							'marketingStrategy', 'strategyPillar', 'initiative',
+						],
 					},
 				},
-				default: '',
-				required: true,
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: {
+							searchListMethod: 'getClients',
+						},
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. 507f1f77bcf86cd799439011',
+					},
+				],
 				description: 'Client to operate on',
 			},
 
@@ -791,9 +991,10 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Active', value: 'active' },
 							{ name: 'Paused', value: 'paused' },
 							{ name: 'Archived', value: 'archived' },
-					],
+						],
 						default: 'active',
 					},
+					{ displayName: 'Channels', name: 'channels', type: 'string', default: '', description: 'JSON array of channels' },
 				],
 			},
 
@@ -809,8 +1010,10 @@ export class TukiGrowth implements INodeType {
 							'websiteContent', 'asset', 'ephemeris', 'category', 'product', 'customer', 'order',
 							'service', 'package', 'project', 'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
-					],
-						operation: ['get', 'update', 'delete'],
+							'referenceContentCategory', 'lead', 'leadSource',
+							'marketingStrategy', 'initiative',
+						],
+						operation: ['get', 'update', 'delete', 'restore', 'submit', 'resolve', 'activate', 'archive', 'setPrimary'],
 					},
 				},
 				default: '',
@@ -836,6 +1039,9 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Industry', name: 'industry', type: 'string', default: '' },
 					{ displayName: 'Main Products', name: 'mainProducts', type: 'string', default: '' },
 					{ displayName: 'Differentiators', name: 'differentiators', type: 'string', default: '' },
+					{ displayName: 'Competitive Advantages', name: 'competitiveAdvantages', type: 'string', default: '', description: 'JSON array' },
+					{ displayName: 'Brand Keywords', name: 'brandKeywords', type: 'string', default: '', description: 'JSON array' },
+					{ displayName: 'Definitions', name: 'definitions', type: 'string', default: '', description: 'JSON array of {term, definition} objects' },
 					{
 						displayName: 'Communication Style',
 						name: 'communicationStyle',
@@ -846,7 +1052,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Informal', value: 'informal' },
 							{ name: 'Technical', value: 'technical' },
 							{ name: 'Friendly', value: 'friendly' },
-					],
+						],
 						default: 'semiformal',
 					},
 				],
@@ -901,7 +1107,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'In Progress', value: 'in_progress' },
 							{ name: 'Completed', value: 'completed' },
 							{ name: 'Archived', value: 'archived' },
-					],
+						],
 						default: 'planned',
 					},
 				],
@@ -931,6 +1137,9 @@ export class TukiGrowth implements INodeType {
 				options: [
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
 					{ displayName: 'Buyer Persona Name', name: 'buyerPersonaName', type: 'string', default: '' },
+					{ displayName: 'Demographics', name: 'demographics', type: 'string', default: '', description: 'JSON object' },
+					{ displayName: 'Psychographics', name: 'psychographics', type: 'string', default: '', description: 'JSON object' },
+					{ displayName: 'Behavioral', name: 'behavioral', type: 'string', default: '', description: 'JSON object' },
 				],
 			},
 
@@ -967,7 +1176,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Low', value: 'low' }, { name: 'Medium', value: 'medium' },
 							{ name: 'High', value: 'high' }, { name: 'Critical', value: 'critical' },
-					],
+						],
 						default: 'medium',
 					},
 				],
@@ -978,6 +1187,9 @@ export class TukiGrowth implements INodeType {
 				displayName: 'Funnel Level',
 				name: 'funnelLevel',
 				type: 'options',
+				typeOptions: {
+					editable: true,
+				},
 				options: [
 					{ name: 'TOFU (Top of Funnel)', value: 'TOFU' },
 					{ name: 'MOFU (Middle of Funnel)', value: 'MOFU' },
@@ -985,7 +1197,26 @@ export class TukiGrowth implements INodeType {
 				],
 				displayOptions: { show: { resource: ['contentBrief'], operation: ['create'] } },
 				default: 'TOFU',
-				required: true,
+				description: 'Funnel stage for this content (or enter custom value)',
+			},
+			{
+				displayName: 'Status',
+				name: 'contentBriefStatus',
+				type: 'options',
+				typeOptions: {
+					editable: true,
+				},
+				options: [
+					{ name: 'Idea', value: 'idea' },
+					{ name: 'In Progress', value: 'in_progress' },
+					{ name: 'Review', value: 'review' },
+					{ name: 'Approved', value: 'approved' },
+					{ name: 'Rejected', value: 'rejected' },
+					{ name: 'Archived', value: 'archived' },
+				],
+				displayOptions: { show: { resource: ['contentBrief'], operation: ['create'] } },
+				default: 'idea',
+				description: 'Status of the content brief (or enter custom value)',
 			},
 			{
 				displayName: 'Additional Fields',
@@ -999,17 +1230,11 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Period', name: 'period', type: 'string', default: '' },
 					{ displayName: 'Comments', name: 'comments', type: 'string', default: '' },
 					{ displayName: 'Objective ID', name: 'objectiveId', type: 'string', default: '' },
-					{
-						displayName: 'Status',
-						name: 'status',
-						type: 'options',
-						options: [
-							{ name: 'Idea', value: 'idea' }, { name: 'In Progress', value: 'in_progress' },
-							{ name: 'Review', value: 'review' }, { name: 'Approved', value: 'approved' },
-							{ name: 'Rejected', value: 'rejected' }, { name: 'Archived', value: 'archived' },
-					],
-						default: 'idea',
-					},
+					{ displayName: 'Strategy ID', name: 'strategyId', type: 'string', default: '' },
+					{ displayName: 'Strategy Pillar ID', name: 'strategyPillarId', type: 'string', default: '' },
+					{ displayName: 'Initiative ID', name: 'initiativeId', type: 'string', default: '' },
+					{ displayName: 'Formats', name: 'formats', type: 'string', default: '', description: 'JSON array of formats' },
+					{ displayName: 'Media', name: 'media', type: 'string', default: '', description: 'JSON array of {type, url, thumbnail, caption, order}' },
 				],
 			},
 
@@ -1073,6 +1298,7 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Source Link', name: 'sourceLink', type: 'string', default: '' },
 					{ displayName: 'Deadline', name: 'deadline', type: 'dateTime', default: '' },
 					{ displayName: 'Publish At', name: 'publishAt', type: 'dateTime', default: '' },
+					{ displayName: 'Region', name: 'region', type: 'string', default: '', description: 'JSON array of regions' },
 					{
 						displayName: 'Status',
 						name: 'status',
@@ -1082,7 +1308,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'To Approve', value: 'to_approve' }, { name: 'Approved', value: 'approved' },
 							{ name: 'Scheduled', value: 'scheduled' }, { name: 'Published', value: 'published' },
 							{ name: 'Discarded', value: 'discarded' },
-					],
+						],
 						default: 'idea',
 					},
 				],
@@ -1119,13 +1345,29 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Deadline', name: 'deadline', type: 'dateTime', default: '' },
 					{ displayName: 'Publish At', name: 'publishAt', type: 'dateTime', default: '' },
 					{
+						displayName: 'Funnel Level',
+						name: 'funnelLevel',
+						type: 'options',
+						options: [
+							{ name: 'TOFU', value: 'TOFU' },
+							{ name: 'MOFU', value: 'MOFU' },
+							{ name: 'BOFU', value: 'BOFU' },
+						],
+						default: 'TOFU',
+					},
+					{ displayName: 'Brief ID', name: 'briefId', type: 'string', default: '' },
+					{ displayName: 'Strategy ID', name: 'strategyId', type: 'string', default: '' },
+					{ displayName: 'Initiative ID', name: 'initiativeId', type: 'string', default: '' },
+					{ displayName: 'External ID', name: 'externalId', type: 'string', default: '' },
+					{ displayName: 'External Platform', name: 'externalPlatform', type: 'string', default: '' },
+					{
 						displayName: 'Priority',
 						name: 'priority',
 						type: 'options',
 						options: [
 							{ name: 'Low', value: 'low' }, { name: 'Medium', value: 'medium' },
 							{ name: 'High', value: 'high' }, { name: 'Critical', value: 'critical' },
-					],
+						],
 						default: 'medium',
 					},
 					{
@@ -1136,9 +1378,16 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Idea', value: 'idea' }, { name: 'Draft', value: 'draft' },
 							{ name: 'To Approve', value: 'to_approve' }, { name: 'Approved', value: 'approved' },
 							{ name: 'Published', value: 'published' }, { name: 'Discarded', value: 'discarded' },
-					],
+						],
 						default: 'idea',
 					},
+					{ displayName: 'SEO Keywords Secondary', name: 'seoKeywordsSecondary', type: 'string', default: '', description: 'JSON array of keywords' },
+					{ displayName: 'Media', name: 'media', type: 'string', default: '', description: 'JSON array of {type, url, thumbnail, caption, order}' },
+					{ displayName: 'Featured Image', name: 'featuredImage', type: 'string', default: '', description: 'JSON object {url, alt}' },
+					{ displayName: 'SEO Score', name: 'seoScore', type: 'number', default: 0 },
+					{ displayName: 'Raw Content', name: 'rawContent', type: 'string', default: '', description: 'HTML content', typeOptions: { rows: 4 } },
+					{ displayName: 'Is Synced', name: 'isSynced', type: 'boolean', default: false },
+					{ displayName: 'Sync Platform', name: 'syncPlatform', type: 'string', default: '' },
 				],
 			},
 
@@ -1176,6 +1425,7 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Folder', name: 'folder', type: 'string', default: '' },
 					{ displayName: 'MIME Type', name: 'mimeType', type: 'string', default: '' },
 					{ displayName: 'File Size (bytes)', name: 'fileSize', type: 'number', default: 0 },
+					{ displayName: 'Tags', name: 'tags', type: 'string', default: '', description: 'JSON array of tags' },
 				],
 			},
 
@@ -1212,7 +1462,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Active', value: 'active' },
 							{ name: 'Archived', value: 'archived' },
-					],
+						],
 						default: 'active',
 					},
 				],
@@ -1239,6 +1489,7 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
 					{ displayName: 'Parent Category ID', name: 'parentId', type: 'string', default: '' },
 					{ displayName: 'External ID', name: 'externalId', type: 'string', default: '' },
+					{ displayName: 'External Platform', name: 'externalPlatform', type: 'string', default: '' },
 				],
 			},
 
@@ -1293,6 +1544,7 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'SEO Description', name: 'seoDescription', type: 'string', default: '' },
 					{ displayName: 'Focus Keyword', name: 'focusKeyword', type: 'string', default: '' },
 					{ displayName: 'External ID', name: 'externalId', type: 'string', default: '' },
+					{ displayName: 'External Platform', name: 'externalPlatform', type: 'string', default: '' },
 					{
 						displayName: 'Status',
 						name: 'status',
@@ -1300,7 +1552,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Draft', value: 'draft' }, { name: 'Active', value: 'active' },
 							{ name: 'Inactive', value: 'inactive' }, { name: 'Archived', value: 'archived' },
-					],
+						],
 						default: 'draft',
 					},
 				],
@@ -1382,9 +1634,10 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Pending', value: 'pending' }, { name: 'Processing', value: 'processing' },
 							{ name: 'Completed', value: 'completed' }, { name: 'Cancelled', value: 'cancelled' },
 							{ name: 'Refunded', value: 'refunded' },
-					],
+						],
 						default: 'pending',
 					},
+					{ displayName: 'Items', name: 'items', type: 'string', default: '', description: 'JSON array of {productId, quantity, unitPrice}' },
 				],
 			},
 
@@ -1442,6 +1695,7 @@ export class TukiGrowth implements INodeType {
 				options: [
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
 					{ displayName: 'Currency', name: 'currency', type: 'string', default: 'USD' },
+					{ displayName: 'Services Included', name: 'servicesIncluded', type: 'string', default: '', description: 'JSON array of service IDs' },
 				],
 			},
 
@@ -1481,7 +1735,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Paused', value: 'paused' },
 							{ name: 'Completed', value: 'completed' },
 							{ name: 'Cancelled', value: 'cancelled' },
-					],
+						],
 						default: 'active',
 					},
 				],
@@ -1540,7 +1794,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Planned', value: 'planned' }, { name: 'Active', value: 'active' },
 							{ name: 'Paused', value: 'paused' }, { name: 'Finished', value: 'finished' },
-					],
+						],
 						default: 'planned',
 					},
 				],
@@ -1592,7 +1846,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Active', value: 'active' },
 							{ name: 'Paused', value: 'paused' },
 							{ name: 'Rejected', value: 'rejected' },
-					],
+						],
 						default: 'draft',
 					},
 				],
@@ -1639,7 +1893,7 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Non-Branded', value: 'non_branded' },
 							{ name: 'Negative', value: 'negative' },
 							{ name: 'Brand', value: 'brand' },
-					],
+						],
 						default: 'non_branded',
 					},
 				],
@@ -1684,7 +1938,7 @@ export class TukiGrowth implements INodeType {
 						options: [
 							{ name: 'Draft', value: 'draft' }, { name: 'Scheduled', value: 'scheduled' },
 							{ name: 'Sent', value: 'sent' }, { name: 'Cancelled', value: 'cancelled' },
-					],
+						],
 						default: 'draft',
 					},
 				],
@@ -1786,11 +2040,26 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Podcast', value: 'podcast' },
 					{ name: 'Event', value: 'event' },
 					{ name: 'Media', value: 'media' },
-					{ name: 'Speaking', value: 'speaking' },
+					{ name: 'Webinar', value: 'webinar' },
+					{ name: 'Live', value: 'live' },
 					{ name: 'Other', value: 'other' },
 				],
 				displayOptions: { show: { resource: ['opportunity'], operation: ['create'] } },
 				default: 'other',
+				required: true,
+			},
+			{
+				displayName: 'Priority',
+				name: 'opportunityPriority',
+				type: 'options',
+				options: [
+					{ name: 'Low', value: 'low' },
+					{ name: 'Medium', value: 'medium' },
+					{ name: 'High', value: 'high' },
+					{ name: 'Critical', value: 'critical' },
+				],
+				displayOptions: { show: { resource: ['opportunity'], operation: ['create'] } },
+				default: 'medium',
 				required: true,
 			},
 			{
@@ -1806,19 +2075,44 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Contact Email', name: 'contactEmail', type: 'string', default: '' },
 					{ displayName: 'URL', name: 'url', type: 'string', default: '' },
 					{ displayName: 'Date', name: 'date', type: 'dateTime', default: '' },
+					{ displayName: 'Fit Score', name: 'fitScore', type: 'number', default: 50 },
+					{ displayName: 'Target Audience Match', name: 'targetAudienceMatch', type: 'number', default: 50 },
+					{
+						displayName: 'Authority Level',
+						name: 'authorityLevel',
+						type: 'options',
+						options: [
+							{ name: 'Low', value: 'low' },
+							{ name: 'Medium', value: 'medium' },
+							{ name: 'High', value: 'high' },
+							{ name: 'Top', value: 'top' },
+						],
+						default: 'medium',
+					},
+					{ displayName: 'Platform', name: 'platform', type: 'string', default: '' },
+					{ displayName: 'Audience Size Estimate', name: 'audienceSizeEstimate', type: 'number', default: 0 },
+					{ displayName: 'Owner ID', name: 'ownerId', type: 'string', default: '' },
+					{ displayName: 'Primary Contact', name: 'primaryContact', type: 'string', default: '' },
+					{ displayName: 'Topic Angle', name: 'topicAngle', type: 'string', default: '' },
+					{ displayName: 'Primary CTA', name: 'primaryCta', type: 'string', default: '' },
+					{ displayName: 'Scheduled At', name: 'scheduledAt', type: 'dateTime', default: '' },
+					{ displayName: 'Published At', name: 'publishedAt', type: 'dateTime', default: '' },
+					{ displayName: 'Notes', name: 'notes', type: 'string', default: '' },
 					{
 						displayName: 'Stage',
 						name: 'stage',
 						type: 'options',
 						options: [
-							{ name: 'Identified', value: 'identified' },
-							{ name: 'Outreach', value: 'outreach' },
-							{ name: 'Negotiation', value: 'negotiation' },
+							{ name: 'Idea', value: 'idea' },
+							{ name: 'Researching', value: 'researching' },
+							{ name: 'Pitched', value: 'pitched' },
+							{ name: 'In Conversation', value: 'in_conversation' },
 							{ name: 'Confirmed', value: 'confirmed' },
-							{ name: 'Completed', value: 'completed' },
-							{ name: 'Cancelled', value: 'cancelled' },
-					],
-						default: 'identified',
+							{ name: 'Published or Delivered', value: 'published_or_delivered' },
+							{ name: 'Repurposed', value: 'repurposed' },
+							{ name: 'Closed', value: 'closed' },
+						],
+						default: 'idea',
 					},
 					{
 						displayName: 'Type',
@@ -1828,12 +2122,66 @@ export class TukiGrowth implements INodeType {
 							{ name: 'Podcast', value: 'podcast' },
 							{ name: 'Event', value: 'event' },
 							{ name: 'Media', value: 'media' },
-							{ name: 'Speaking', value: 'speaking' },
+							{ name: 'Webinar', value: 'webinar' },
+							{ name: 'Live', value: 'live' },
 							{ name: 'Other', value: 'other' },
-					],
+						],
 						default: 'other',
 					},
+					{
+						displayName: 'Priority',
+						name: 'priority',
+						type: 'options',
+						options: [
+							{ name: 'Low', value: 'low' },
+							{ name: 'Medium', value: 'medium' },
+							{ name: 'High', value: 'high' },
+							{ name: 'Critical', value: 'critical' },
+						],
+						default: 'medium',
+					},
 				],
+			},
+
+			// ─── OPPORTUNITY BULK ACTION FIELDS ──────────────────────────
+			{
+				displayName: 'Action',
+				name: 'opportunityBulkAction',
+				type: 'options',
+				options: [
+					{ name: 'Move Stage', value: 'move_stage' },
+				],
+				displayOptions: { show: { resource: ['opportunity'], operation: ['bulkAction'] } },
+				default: 'move_stage',
+				required: true,
+				description: 'Bulk action to perform',
+			},
+			{
+				displayName: 'IDs',
+				name: 'opportunityBulkIds',
+				type: 'string',
+				displayOptions: { show: { resource: ['opportunity'], operation: ['bulkAction'] } },
+				default: '',
+				required: true,
+				description: 'Comma-separated list of opportunity IDs',
+			},
+			{
+				displayName: 'Stage',
+				name: 'opportunityBulkStage',
+				type: 'options',
+				options: [
+					{ name: 'Idea', value: 'idea' },
+					{ name: 'Researching', value: 'researching' },
+					{ name: 'Pitched', value: 'pitched' },
+					{ name: 'In Conversation', value: 'in_conversation' },
+					{ name: 'Confirmed', value: 'confirmed' },
+					{ name: 'Published or Delivered', value: 'published_or_delivered' },
+					{ name: 'Repurposed', value: 'repurposed' },
+					{ name: 'Closed', value: 'closed' },
+				],
+				displayOptions: { show: { resource: ['opportunity'], operation: ['bulkAction'] } },
+				default: 'idea',
+				description: 'Stage to set (for move_stage action)',
 			},
 
 			// ─── COMMENT FIELDS ───────────────────────────────────────────
@@ -1861,7 +2209,7 @@ export class TukiGrowth implements INodeType {
 				displayName: 'Is Resolved',
 				name: 'isResolved',
 				type: 'boolean',
-				displayOptions: { show: { resource: ['comment'], operation: ['update'] } },
+				displayOptions: { show: { resource: ['comment'], operation: ['update', 'resolve'] } },
 				default: false,
 			},
 
@@ -1956,11 +2304,23 @@ export class TukiGrowth implements INodeType {
 			{
 				displayName: 'Audience',
 				name: 'audienceId',
-				type: 'options',
-				typeOptions: { loadOptionsMethod: 'getAudiences' },
+				type: 'resourceLocator',
 				displayOptions: { show: { resource: ['audiencePainPoint'] } },
-				default: '',
-				required: true,
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: { searchListMethod: 'getAudiences' },
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. 507f1f77bcf86cd799439011',
+					},
+				],
 				description: 'Audience to manage pain points for',
 			},
 			{
@@ -1975,11 +2335,23 @@ export class TukiGrowth implements INodeType {
 			{
 				displayName: 'Pain Point',
 				name: 'painPointIdToLink',
-				type: 'options',
-				typeOptions: { loadOptionsMethod: 'getPainPoints' },
+				type: 'resourceLocator',
 				displayOptions: { show: { resource: ['audiencePainPoint'], operation: ['create'] } },
-				default: '',
-				required: true,
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: { searchListMethod: 'getPainPoints' },
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. 507f1f77bcf86cd799439011',
+					},
+				],
 				description: 'Pain point to link',
 			},
 			{
@@ -1996,11 +2368,23 @@ export class TukiGrowth implements INodeType {
 			{
 				displayName: 'Ad',
 				name: 'adIdForKeyword',
-				type: 'options',
-				typeOptions: { loadOptionsMethod: 'getAds' },
+				type: 'resourceLocator',
 				displayOptions: { show: { resource: ['adKeyword'] } },
-				default: '',
-				required: true,
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: { searchListMethod: 'getAds' },
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. 507f1f77bcf86cd799439011',
+					},
+				],
 				description: 'Ad to manage keywords for',
 			},
 			{
@@ -2015,118 +2399,480 @@ export class TukiGrowth implements INodeType {
 			{
 				displayName: 'Keyword',
 				name: 'keywordIdToLink',
-				type: 'options',
-				typeOptions: { loadOptionsMethod: 'getKeywords' },
+				type: 'resourceLocator',
 				displayOptions: { show: { resource: ['adKeyword'], operation: ['create'] } },
-				default: '',
-				required: true,
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: { searchListMethod: 'getKeywords' },
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. 507f1f77bcf86cd799439011',
+					},
+				],
 				description: 'Keyword to link',
 			},
 
+			// ─── REFERENCE CONTENT FIELDS ─────────────────────────────────────────
+			{
+				displayName: 'Reference Content ID',
+				name: 'referenceContentId',
+				type: 'string',
+				displayOptions: { show: { resource: ['referenceContent'], operation: ['get', 'update', 'delete'] } },
+				default: '',
+				required: true,
+				description: 'ID of the reference content',
+			},
+			{
+				displayName: 'Title',
+				name: 'referenceContentTitle',
+				type: 'string',
+				displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Title of the reference content',
+			},
+			{
+				displayName: 'Media Type',
+				name: 'referenceContentMediaType',
+				type: 'options',
+				displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
+				options: [
+					{ name: 'Link', value: 'link' },
+					{ name: 'Text', value: 'text' },
+					{ name: 'Image', value: 'image' },
+					{ name: 'Video', value: 'video' },
+					{ name: 'File', value: 'file' },
+				],
+				default: 'link',
+				required: true,
+				description: 'Media type of the reference content',
+			},
+			{
+				displayName: 'Priority',
+				name: 'referenceContentPriority',
+				type: 'options',
+				displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
+				options: [
+					{ name: 'Low', value: 'low' },
+					{ name: 'Medium', value: 'medium' },
+					{ name: 'High', value: 'high' },
+					{ name: 'Critical', value: 'critical' },
+				],
+				default: 'medium',
+				required: true,
+				description: 'Priority of the reference content',
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['referenceContent'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{ displayName: 'URL', name: 'url', type: 'string', default: '' },
+					{ displayName: 'Category ID', name: 'categoryId', type: 'string', default: '' },
+					{ displayName: 'Proposed By', name: 'proposedBy', type: 'string', default: '' },
+					{ displayName: 'Purpose', name: 'purpose', type: 'string', default: '' },
+					{
+						displayName: 'Status',
+						name: 'status',
+						type: 'options',
+						options: [
+							{ name: 'Idea', value: 'idea' },
+							{ name: 'Draft', value: 'draft' },
+							{ name: 'Review', value: 'review' },
+							{ name: 'Approved', value: 'approved' },
+							{ name: 'Archived', value: 'archived' },
+						],
+						default: 'idea',
+					},
+					{
+						displayName: 'Media Type',
+						name: 'mediaType',
+						type: 'options',
+						options: [
+							{ name: 'Link', value: 'link' },
+							{ name: 'Text', value: 'text' },
+							{ name: 'Image', value: 'image' },
+							{ name: 'Video', value: 'video' },
+							{ name: 'File', value: 'file' },
+						],
+						default: 'link',
+					},
+					{
+						displayName: 'Priority',
+						name: 'priority',
+						type: 'options',
+						options: [
+							{ name: 'Low', value: 'low' },
+							{ name: 'Medium', value: 'medium' },
+							{ name: 'High', value: 'high' },
+							{ name: 'Critical', value: 'critical' },
+						],
+						default: 'medium',
+					},
+					{ displayName: 'Media', name: 'media', type: 'string', default: '', description: 'JSON array of {type, url, thumbnail, caption, order}' },
+				],
+			},
 
-		// ─── REFERENCE CONTENT FIELDS ─────────────────────────────────────────
-		{
-			displayName: 'Reference Content ID',
-			name: 'referenceContentId',
-			type: 'string',
-			displayOptions: { show: { resource: ['referenceContent'], operation: ['get', 'update', 'delete'] } },
-			default: '',
-			required: true,
-			description: 'ID of the reference reference content',
-		},
-		{
-			displayName: 'Title',
-			name: 'referenceContentTitle',
-			type: 'string',
-			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
-			default: '',
-			required: true,
-			description: 'Title of the reference content',
-		},
-		{
-			displayName: 'Media Type',
-			name: 'referenceContentMediaType',
-			type: 'options',
-			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
-			options: [
-				{ name: 'Link', value: 'link' },
-				{ name: 'Text', value: 'text' },
-				{ name: 'Image', value: 'image' },
-				{ name: 'Video', value: 'video' },
-				{ name: 'File', value: 'file' },
-			],
-			default: 'link',
-			required: true,
-			description: 'Media type of the reference content',
-		},
-		{
-			displayName: 'Priority',
-			name: 'referenceContentPriority',
-			type: 'options',
-			displayOptions: { show: { resource: ['referenceContent'], operation: ['create'] } },
-			options: [
-				{ name: 'Low', value: 'low' },
-				{ name: 'Medium', value: 'medium' },
-				{ name: 'High', value: 'high' },
-				{ name: 'Critical', value: 'critical' },
-			],
-			default: 'medium',
-			required: true,
-			description: 'Priority of the reference content',
-		},
-		{
-			displayName: 'Additional Fields',
-			name: 'additionalFields',
-			type: 'collection',
-			placeholder: 'Add Field',
-			default: {},
-			displayOptions: { show: { resource: ['referenceContent'], operation: ['create', 'update'] } },
-			options: [
-				{ displayName: 'Description', name: 'description', type: 'string', default: '' },
-				{ displayName: 'URL', name: 'url', type: 'string', default: '' },
-				{ displayName: 'Category ID', name: 'categoryId', type: 'string', default: '' },
-				{ displayName: 'Proposed By', name: 'proposedBy', type: 'string', default: '' },
-				{ displayName: 'Purpose', name: 'purpose', type: 'string', default: '' },
-				{
-					displayName: 'Status',
-					name: 'status',
-					type: 'options',
-					options: [
-						{ name: 'Idea', value: 'idea' },
-						{ name: 'Draft', value: 'draft' },
-						{ name: 'Review', value: 'review' },
-						{ name: 'Approved', value: 'approved' },
-						{ name: 'Archived', value: 'archived' },
-					],
-					default: 'idea',
-				},
-				{
-					displayName: 'Media Type',
-					name: 'mediaType',
-					type: 'options',
-					options: [
-						{ name: 'Link', value: 'link' },
-						{ name: 'Text', value: 'text' },
-						{ name: 'Image', value: 'image' },
-						{ name: 'Video', value: 'video' },
-						{ name: 'File', value: 'file' },
-					],
-					default: 'link',
-				},
-				{
-					displayName: 'Priority',
-					name: 'priority',
-					type: 'options',
-					options: [
-						{ name: 'Low', value: 'low' },
-						{ name: 'Medium', value: 'medium' },
-						{ name: 'High', value: 'high' },
-						{ name: 'Critical', value: 'critical' },
-					],
-					default: 'medium',
-				},
-			],
-		},
+			// ─── REFERENCE CONTENT CATEGORY FIELDS ──────────────────────────────
+			{
+				displayName: 'Name',
+				name: 'categoryName',
+				type: 'string',
+				displayOptions: { show: { resource: ['referenceContentCategory'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Name of the category',
+			},
+			{
+				displayName: 'Color',
+				name: 'categoryColor',
+				type: 'string',
+				displayOptions: { show: { resource: ['referenceContentCategory'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Color for the category (e.g. #FF0000)',
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['referenceContentCategory'], operation: ['update'] } },
+				options: [
+					{ displayName: 'Name', name: 'name', type: 'string', default: '' },
+					{ displayName: 'Color', name: 'color', type: 'string', default: '' },
+					{ displayName: 'Order', name: 'order', type: 'number', default: 0 },
+				],
+			},
+			{
+				displayName: 'Target Category ID',
+				name: 'targetCategoryId',
+				type: 'string',
+				displayOptions: { show: { resource: ['referenceContentCategory'], operation: ['delete'] } },
+				default: '',
+				description: 'Category ID to reassign items to before deleting',
+			},
+
+			// ─── LEAD FIELDS ──────────────────────────────────────────────
+			{
+				displayName: 'Email',
+				name: 'leadEmail',
+				type: 'string',
+				displayOptions: { show: { resource: ['lead'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Email address of the lead',
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['lead'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'First Name', name: 'firstName', type: 'string', default: '' },
+					{ displayName: 'Last Name', name: 'lastName', type: 'string', default: '' },
+					{ displayName: 'Phone', name: 'phone', type: 'string', default: '' },
+					{ displayName: 'Company Name', name: 'companyName', type: 'string', default: '' },
+					{
+						displayName: 'Source',
+						name: 'sourceId',
+						type: 'options',
+						typeOptions: { loadOptionsMethod: 'getLeadSources' },
+						default: '',
+					},
+					{ displayName: 'Campaign', name: 'campaign', type: 'string', default: '' },
+					{ displayName: 'Lead Score', name: 'leadScore', type: 'number', default: 0 },
+					{ displayName: 'Status Key', name: 'statusKey', type: 'string', default: '' },
+					{ displayName: 'Assigned To', name: 'assignedTo', type: 'string', default: '' },
+					{ displayName: 'Last Contact At', name: 'lastContactAt', type: 'dateTime', default: '' },
+					{ displayName: 'Next Follow Up At', name: 'nextFollowUpAt', type: 'dateTime', default: '' },
+					{ displayName: 'Notes', name: 'notes', type: 'string', default: '' },
+				],
+			},
+
+			// ─── LEAD BULK ACTION FIELDS ──────────────────────────────────
+			{
+				displayName: 'Action',
+				name: 'leadBulkAction',
+				type: 'options',
+				options: [
+					{ name: 'Update Status', value: 'update_status' },
+					{ name: 'Assign', value: 'assign' },
+					{ name: 'Remove', value: 'remove' },
+					{ name: 'Restore', value: 'restore' },
+				],
+				displayOptions: { show: { resource: ['lead'], operation: ['bulkAction'] } },
+				default: 'update_status',
+				required: true,
+				description: 'Bulk action to perform',
+			},
+			{
+				displayName: 'IDs',
+				name: 'leadBulkIds',
+				type: 'string',
+				displayOptions: { show: { resource: ['lead'], operation: ['bulkAction'] } },
+				default: '',
+				required: true,
+				description: 'Comma-separated list of lead IDs',
+			},
+			{
+				displayName: 'Status Key',
+				name: 'leadBulkStatusKey',
+				type: 'string',
+				displayOptions: { show: { resource: ['lead'], operation: ['bulkAction'] } },
+				default: '',
+				description: 'Status key to set (for update_status action)',
+			},
+			{
+				displayName: 'Assigned To',
+				name: 'leadBulkAssignedTo',
+				type: 'string',
+				displayOptions: { show: { resource: ['lead'], operation: ['bulkAction'] } },
+				default: '',
+				description: 'User ID to assign to (for assign action)',
+			},
+
+			// ─── LEAD SOURCE FIELDS ──────────────────────────────────────
+			{
+				displayName: 'Name',
+				name: 'leadSourceName',
+				type: 'string',
+				displayOptions: { show: { resource: ['leadSource'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Name of the lead source',
+			},
+			{
+				displayName: 'Color',
+				name: 'leadSourceColor',
+				type: 'string',
+				displayOptions: { show: { resource: ['leadSource'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'Color for the lead source (e.g. #FF0000)',
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['leadSource'], operation: ['update'] } },
+				options: [
+					{ displayName: 'Name', name: 'name', type: 'string', default: '' },
+					{ displayName: 'Color', name: 'color', type: 'string', default: '' },
+				],
+			},
+			{
+				displayName: 'Target Source ID',
+				name: 'targetSourceId',
+				type: 'string',
+				displayOptions: { show: { resource: ['leadSource'], operation: ['delete'] } },
+				default: '',
+				description: 'Source ID to reassign leads to before deleting',
+			},
+
+			// ─── MARKETING STRATEGY FIELDS ──────────────────────────────────
+			{
+				displayName: 'Name',
+				name: 'strategyName',
+				type: 'string',
+				displayOptions: { show: { resource: ['marketingStrategy'], operation: ['create'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['marketingStrategy'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Strategy Type', name: 'strategyType', type: 'string', default: '' },
+					{ displayName: 'Summary', name: 'summary', type: 'string', default: '', typeOptions: { rows: 3 } },
+					{ displayName: 'Problem Statement', name: 'problemStatement', type: 'string', default: '', typeOptions: { rows: 3 } },
+					{ displayName: 'Approach', name: 'approach', type: 'string', default: '', typeOptions: { rows: 3 } },
+					{ displayName: 'Rationale', name: 'rationale', type: 'string', default: '', typeOptions: { rows: 3 } },
+					{ displayName: 'Positioning', name: 'positioning', type: 'string', default: '' },
+					{ displayName: 'Primary Offer', name: 'primaryOffer', type: 'string', default: '' },
+					{ displayName: 'Primary Channel', name: 'primaryChannel', type: 'string', default: '' },
+					{ displayName: 'Secondary Channels', name: 'secondaryChannels', type: 'string', default: '', description: 'JSON array of channels' },
+					{ displayName: 'Budget Estimate', name: 'budgetEstimate', type: 'number', default: 0 },
+					{ displayName: 'Owner ID', name: 'ownerId', type: 'string', default: '' },
+					{ displayName: 'Period Start', name: 'periodStart', type: 'dateTime', default: '' },
+					{ displayName: 'Period End', name: 'periodEnd', type: 'dateTime', default: '' },
+					{ displayName: 'Review Cadence', name: 'reviewCadence', type: 'string', default: '' },
+					{ displayName: 'Success Criteria', name: 'successCriteria', type: 'string', default: '', typeOptions: { rows: 3 } },
+					{ displayName: 'Is Primary', name: 'isPrimary', type: 'boolean', default: false },
+					{
+						displayName: 'Status',
+						name: 'status',
+						type: 'options',
+						options: [
+							{ name: 'Draft', value: 'draft' },
+							{ name: 'Active', value: 'active' },
+							{ name: 'Archived', value: 'archived' },
+						],
+						default: 'draft',
+					},
+				],
+			},
+
+			// ─── STRATEGY PILLAR FIELDS ──────────────────────────────────────
+			{
+				displayName: 'Strategy',
+				name: 'parentStrategyId',
+				type: 'resourceLocator',
+				displayOptions: { show: { resource: ['strategyPillar'] } },
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						typeOptions: { searchListMethod: 'getMarketingStrategies' },
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. jd7abc123...',
+					},
+				],
+				description: 'Parent marketing strategy',
+			},
+			{
+				displayName: 'Pillar ID',
+				name: 'pillarId',
+				type: 'string',
+				displayOptions: { show: { resource: ['strategyPillar'], operation: ['delete'] } },
+				default: '',
+				required: true,
+				description: 'ID of the pillar to delete',
+			},
+			{
+				displayName: 'Name',
+				name: 'pillarName',
+				type: 'string',
+				displayOptions: { show: { resource: ['strategyPillar'], operation: ['create'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Description',
+				name: 'pillarDescription',
+				type: 'string',
+				displayOptions: { show: { resource: ['strategyPillar'], operation: ['create'] } },
+				default: '',
+				typeOptions: { rows: 3 },
+			},
+
+			// ─── STRATEGIC INITIATIVE FIELDS ─────────────────────────────────
+			{
+				displayName: 'Strategy ID',
+				name: 'initiativeStrategyId',
+				type: 'string',
+				displayOptions: { show: { resource: ['initiative'], operation: ['create'] } },
+				default: '',
+				required: true,
+				description: 'ID of the parent strategy',
+			},
+			{
+				displayName: 'Name',
+				name: 'initiativeName',
+				type: 'string',
+				displayOptions: { show: { resource: ['initiative'], operation: ['create'] } },
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['initiative'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Pillar ID', name: 'pillarId', type: 'string', default: '' },
+					{ displayName: 'Summary', name: 'summary', type: 'string', default: '', typeOptions: { rows: 3 } },
+					{ displayName: 'Success Criteria', name: 'successCriteria', type: 'string', default: '', typeOptions: { rows: 3 } },
+					{ displayName: 'Primary Channel', name: 'primaryChannel', type: 'string', default: '' },
+					{
+						displayName: 'Status',
+						name: 'status',
+						type: 'options',
+						options: [
+							{ name: 'Draft', value: 'draft' },
+							{ name: 'Active', value: 'active' },
+							{ name: 'Paused', value: 'paused' },
+							{ name: 'Completed', value: 'completed' },
+							{ name: 'Archived', value: 'archived' },
+						],
+						default: 'draft',
+					},
+				],
+			},
+
+			// ─── CLIENT MODULE FIELDS ────────────────────────────────────
+			{
+				displayName: 'Module Name',
+				name: 'moduleName',
+				type: 'string',
+				displayOptions: { show: { resource: ['clientModule'], operation: ['toggle'] } },
+				default: '',
+				required: true,
+				description: 'Name of the module to toggle',
+			},
+			{
+				displayName: 'Enabled',
+				name: 'moduleEnabled',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['clientModule'], operation: ['toggle'] } },
+				default: true,
+				description: 'Whether to enable or disable the module',
+			},
+
+			// ─── CLIENT ACTIVITY FIELDS ──────────────────────────────────
+			{
+				displayName: 'Filters',
+				name: 'filters',
+				type: 'collection',
+				placeholder: 'Add Filter',
+				default: {},
+				displayOptions: { show: { resource: ['clientActivity'], operation: ['list'] } },
+				options: [
+					{ displayName: 'Limit', name: 'limit', type: 'number', default: 20, description: 'Maximum number of results' },
+				],
+			},
+
+			// ─── ORGANIZATION ACTIVITY FIELDS ────────────────────────────
+			{
+				displayName: 'Filters',
+				name: 'filters',
+				type: 'collection',
+				placeholder: 'Add Filter',
+				default: {},
+				displayOptions: { show: { resource: ['organizationActivity'], operation: ['list'] } },
+				options: [
+					{ displayName: 'Limit', name: 'limit', type: 'number', default: 20, description: 'Maximum number of results' },
+				],
+			},
+
 			// ─── EPHEMERIS BY MONTH FIELDS ─────────────────────────────────────
 			{
 				displayName: 'Month',
@@ -2218,7 +2964,9 @@ export class TukiGrowth implements INodeType {
 							'service', 'package', 'project',
 							'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment', 'referenceContent',
-					],
+							'referenceContentCategory', 'lead', 'leadSource',
+							'marketingStrategy', 'initiative',
+						],
 						operation: ['list'],
 					},
 				},
@@ -2249,7 +2997,7 @@ export class TukiGrowth implements INodeType {
 			},
 			async getClients(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				try {
-					const orgId = this.getCurrentNodeParameter('organizationId') as string;
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
 					if (!orgId) return [];
 					const response = await this.helpers.httpRequestWithAuthentication.call(
 						this,
@@ -2264,8 +3012,8 @@ export class TukiGrowth implements INodeType {
 			},
 			async getAudiences(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				try {
-					const orgId = this.getCurrentNodeParameter('organizationId') as string;
-					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
 					if (!orgId || !clientId) return [];
 					const response = await this.helpers.httpRequestWithAuthentication.call(
 						this,
@@ -2280,8 +3028,8 @@ export class TukiGrowth implements INodeType {
 			},
 			async getPainPoints(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				try {
-					const orgId = this.getCurrentNodeParameter('organizationId') as string;
-					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
 					if (!orgId || !clientId) return [];
 					const response = await this.helpers.httpRequestWithAuthentication.call(
 						this,
@@ -2296,8 +3044,8 @@ export class TukiGrowth implements INodeType {
 			},
 			async getAds(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				try {
-					const orgId = this.getCurrentNodeParameter('organizationId') as string;
-					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
 					if (!orgId || !clientId) return [];
 					const response = await this.helpers.httpRequestWithAuthentication.call(
 						this,
@@ -2312,8 +3060,8 @@ export class TukiGrowth implements INodeType {
 			},
 			async getKeywords(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				try {
-					const orgId = this.getCurrentNodeParameter('organizationId') as string;
-					const clientId = this.getCurrentNodeParameter('clientIdSelect') as string;
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
 					if (!orgId || !clientId) return [];
 					const response = await this.helpers.httpRequestWithAuthentication.call(
 						this,
@@ -2324,6 +3072,204 @@ export class TukiGrowth implements INodeType {
 					return items.map((k: any) => ({ name: String(k.keyword ?? k._id), value: String(k._id) }));
 				} catch {
 					return [];
+				}
+			},
+			async getLeadSources(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return [];
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/crm/lead-sources`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return items.map((s: any) => ({ name: String(s.name ?? s._id), value: String(s._id) }));
+				} catch {
+					return [];
+				}
+			},
+			async getMarketingStrategies(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return [];
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/strategies`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return items.map((s: any) => ({ name: String(s.name ?? s._id), value: String(s._id) }));
+				} catch {
+					return [];
+				}
+			},
+		},
+		listSearch: {
+			async getOrganizations(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((o: any) => ({
+							name: String(o.name ?? o._id),
+							value: String(o._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
+				}
+			},
+			async getClients(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					if (!orgId) return { results: [] };
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((c: any) => ({
+							name: String(c.name ?? c._id),
+							value: String(c._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
+				}
+			},
+			async getAudiences(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return { results: [] };
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/audiences`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((a: any) => ({
+							name: String(a.name ?? a._id),
+							value: String(a._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
+				}
+			},
+			async getPainPoints(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return { results: [] };
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/pain-points`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((p: any) => ({
+							name: String(p.title ?? p._id),
+							value: String(p._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
+				}
+			},
+			async getAds(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return { results: [] };
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/ads/ads`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((a: any) => ({
+							name: String(a.headline ?? a._id),
+							value: String(a._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
+				}
+			},
+			async getKeywords(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return { results: [] };
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/ads/keywords`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((k: any) => ({
+							name: String(k.keyword ?? k._id),
+							value: String(k._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
+				}
+			},
+			async getLeadSources(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return { results: [] };
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/crm/lead-sources`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((s: any) => ({
+							name: String(s.name ?? s._id),
+							value: String(s._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
+				}
+			},
+			async getMarketingStrategies(this: ILoadOptionsFunctions): Promise<INodeListSearchResult> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return { results: [] };
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/strategies`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return {
+						results: items.map((s: any) => ({
+							name: String(s.name ?? s._id),
+							value: String(s._id),
+						})),
+					};
+				} catch {
+					return { results: [] };
 				}
 			},
 		},
@@ -2378,7 +3324,7 @@ export class TukiGrowth implements INodeType {
 
 				// ── ORGANIZATION MEMBER ────────────────────────────────────────────
 				} else if (resource === 'organizationMember') {
-					const orgId = this.getNodeParameter('organizationId', i) as string;
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
 					const base = `${BASE_URL}/organizations/${orgId}/members`;
 
 					if (operation === 'list') {
@@ -2410,9 +3356,18 @@ export class TukiGrowth implements INodeType {
 						});
 					}
 
+				// ── ORGANIZATION ACTIVITY ──────────────────────────────────────────
+				} else if (resource === 'organizationActivity') {
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
+					const base = `${BASE_URL}/organizations/${orgId}/activity`;
+					const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
+					response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+						method: 'GET', url: base, qs, json: true,
+					});
+
 				// ── CLIENT ────────────────────────────────────────────────
 				} else if (resource === 'client') {
-					const orgId = this.getNodeParameter('organizationId', i) as string;
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
 					const base = `${BASE_URL}/organizations/${orgId}/clients`;
 
 					if (operation === 'list') {
@@ -2456,8 +3411,8 @@ export class TukiGrowth implements INodeType {
 
 				// ── CLIENT MEMBER ──────────────────────────────────────────
 				} else if (resource === 'clientMember') {
-					const orgId = this.getNodeParameter('organizationId', i) as string;
-					const clientId = this.getNodeParameter('clientIdSelect', i) as string;
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getNodeParameter('clientIdSelect', i) as INodeParameterResourceLocator);
 					const base = `${BASE_URL}/organizations/${orgId}/clients/${clientId}/members`;
 
 					if (operation === 'list') {
@@ -2490,8 +3445,8 @@ export class TukiGrowth implements INodeType {
 
 				// ── BUSINESS CONTEXT ──────────────────────────────────────
 				} else if (resource === 'businessContext') {
-					const orgId = this.getNodeParameter('organizationId', i) as string;
-					const clientId = this.getNodeParameter('clientIdSelect', i) as string;
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getNodeParameter('clientIdSelect', i) as INodeParameterResourceLocator);
 					const url = `${BASE_URL}/organizations/${orgId}/clients/${clientId}/business-context`;
 
 					if (operation === 'get') {
@@ -2505,15 +3460,142 @@ export class TukiGrowth implements INodeType {
 						});
 					}
 
+				// ── CLIENT MODULE ──────────────────────────────────────────
+				} else if (resource === 'clientModule') {
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getNodeParameter('clientIdSelect', i) as INodeParameterResourceLocator);
+					const base = `${BASE_URL}/organizations/${orgId}/clients/${clientId}/modules`;
+
+					if (operation === 'list') {
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'GET', url: base, json: true,
+						});
+					} else if (operation === 'toggle') {
+						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+							method: 'PATCH',
+							url: base,
+							body: {
+								module: this.getNodeParameter('moduleName', i) as string,
+								enabled: this.getNodeParameter('moduleEnabled', i) as boolean,
+							},
+							json: true,
+						});
+					}
+
+				// ── CLIENT ACTIVITY ────────────────────────────────────────
+				} else if (resource === 'clientActivity') {
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getNodeParameter('clientIdSelect', i) as INodeParameterResourceLocator);
+					const base = `${BASE_URL}/organizations/${orgId}/clients/${clientId}/activity`;
+					const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
+					response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+						method: 'GET', url: base, qs, json: true,
+					});
+
 				// ── MODULE RESOURCES ──────────────────────────────────────
 				} else {
-					const orgId = this.getNodeParameter('organizationId', i) as string;
-					const clientId = this.getNodeParameter('clientIdSelect', i) as string;
+					const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getNodeParameter('clientIdSelect', i) as INodeParameterResourceLocator);
 					const moduleBase = `${BASE_URL}/organizations/${orgId}/clients/${clientId}`;
 
+					// Handle marketing strategy
+					if (resource === 'marketingStrategy') {
+						const endpointBase = `${moduleBase}/strategy/strategies`;
+
+						if (operation === 'list') {
+							const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: endpointBase, qs, json: true,
+							});
+						} else if (operation === 'get') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: `${endpointBase}/${recordId}`, json: true,
+							});
+						} else if (operation === 'create') {
+							const body = buildCreateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: endpointBase, body, json: true,
+							});
+						} else if (operation === 'update') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							const body = buildUpdateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'PATCH', url: `${endpointBase}/${recordId}`, body, json: true,
+							});
+						} else if (operation === 'activate') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: `${endpointBase}/${recordId}/activate`, json: true,
+							});
+						} else if (operation === 'archive') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: `${endpointBase}/${recordId}/archive`, json: true,
+							});
+						} else if (operation === 'setPrimary') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: `${endpointBase}/${recordId}/set-primary`, json: true,
+							});
+						}
+
+					// Handle strategy pillars (nested under strategy)
+					} else if (resource === 'strategyPillar') {
+						const strategyId = getResourceLocatorValue(this.getNodeParameter('parentStrategyId', i) as INodeParameterResourceLocator);
+						const endpointBase = `${moduleBase}/strategy/pillars`;
+
+						if (operation === 'list') {
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: endpointBase, qs: { strategyId }, json: true,
+							});
+						} else if (operation === 'create') {
+							const body = buildCreateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: endpointBase, body, json: true,
+							});
+						} else if (operation === 'delete') {
+							const pillarId = this.getNodeParameter('pillarId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'DELETE', url: `${endpointBase}/${pillarId}`, json: true,
+							});
+						}
+
+					// Handle strategic initiatives
+					} else if (resource === 'initiative') {
+						const endpointBase = `${moduleBase}/strategy/initiatives`;
+
+						if (operation === 'list') {
+							const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: endpointBase, qs, json: true,
+							});
+						} else if (operation === 'get') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: `${endpointBase}/${recordId}`, json: true,
+							});
+						} else if (operation === 'create') {
+							const body = buildCreateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: endpointBase, body, json: true,
+							});
+						} else if (operation === 'update') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							const body = buildUpdateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'PATCH', url: `${endpointBase}/${recordId}`, body, json: true,
+							});
+						} else if (operation === 'delete') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'DELETE', url: `${endpointBase}/${recordId}`, json: true,
+							});
+						}
+
 					// Handle audience pain points (nested resource)
-					if (resource === 'audiencePainPoint') {
-						const audienceId = this.getNodeParameter('audienceId', i) as string;
+					} else if (resource === 'audiencePainPoint') {
+						const audienceId = getResourceLocatorValue(this.getNodeParameter('audienceId', i) as INodeParameterResourceLocator);
 						const endpointBase = `${moduleBase}/strategy/audiences/${audienceId}/pain-points`;
 
 						if (operation === 'list') {
@@ -2525,7 +3607,7 @@ export class TukiGrowth implements INodeType {
 								method: 'POST',
 								url: endpointBase,
 								body: {
-									painPointId: this.getNodeParameter('painPointIdToLink', i) as string,
+									painPointId: getResourceLocatorValue(this.getNodeParameter('painPointIdToLink', i) as INodeParameterResourceLocator),
 									relevanceScore: this.getNodeParameter('relevanceScore', i, 5) as number,
 								},
 								json: true,
@@ -2552,7 +3634,7 @@ export class TukiGrowth implements INodeType {
 
 					// Handle ad keywords (nested resource)
 					} else if (resource === 'adKeyword') {
-						const adId = this.getNodeParameter('adIdForKeyword', i) as string;
+						const adId = getResourceLocatorValue(this.getNodeParameter('adIdForKeyword', i) as INodeParameterResourceLocator);
 						const endpointBase = `${moduleBase}/ads/ads/${adId}/keywords`;
 
 						if (operation === 'list') {
@@ -2563,7 +3645,7 @@ export class TukiGrowth implements INodeType {
 							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
 								method: 'POST',
 								url: endpointBase,
-								body: { keywordId: this.getNodeParameter('keywordIdToLink', i) as string },
+								body: { keywordId: getResourceLocatorValue(this.getNodeParameter('keywordIdToLink', i) as INodeParameterResourceLocator) },
 								json: true,
 							});
 						} else if (operation === 'delete') {
@@ -2601,6 +3683,11 @@ export class TukiGrowth implements INodeType {
 							opportunity: 'pr-speaking/opportunities',
 							comment: 'comments',
 							referenceContent: 'content/reference',
+							referenceContentCategory: 'content/reference/categories',
+							lead: 'crm/leads',
+							leadSource: 'crm/lead-sources',
+							marketingStrategy: 'strategy/strategies',
+							initiative: 'strategy/initiatives',
 						};
 
 						const resourcePath = resourcePaths[resource];
@@ -2633,8 +3720,72 @@ export class TukiGrowth implements INodeType {
 							});
 						} else if (operation === 'delete') {
 							const recordId = this.getNodeParameter('recordId', i) as string;
+							const body: Record<string, any> = {};
+							// Handle reassign for referenceContentCategory delete
+							if (resource === 'referenceContentCategory') {
+								const targetCategoryId = this.getNodeParameter('targetCategoryId', i, '') as string;
+								if (targetCategoryId) body.targetCategoryId = targetCategoryId;
+							}
+							// Handle reassign for leadSource delete
+							if (resource === 'leadSource') {
+								const targetSourceId = this.getNodeParameter('targetSourceId', i, '') as string;
+								if (targetSourceId) body.targetSourceId = targetSourceId;
+							}
 							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-								method: 'DELETE', url: `${endpointBase}/${recordId}`, json: true,
+								method: 'DELETE',
+								url: `${endpointBase}/${recordId}`,
+								body: Object.keys(body).length > 0 ? body : undefined,
+								json: true,
+							});
+						} else if (operation === 'submit' && resource === 'contentBrief') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: `${endpointBase}/${recordId}/submit`, json: true,
+							});
+						} else if (operation === 'resolve' && resource === 'comment') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							const isResolved = this.getNodeParameter('isResolved', i, true) as boolean;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST',
+								url: `${endpointBase}/${recordId}/resolve`,
+								body: { isResolved },
+								json: true,
+							});
+						} else if (operation === 'restore' && resource === 'lead') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: `${endpointBase}/${recordId}/restore`, json: true,
+							});
+						} else if (operation === 'bulkAction' && resource === 'opportunity') {
+							const action = this.getNodeParameter('opportunityBulkAction', i) as string;
+							const idsStr = this.getNodeParameter('opportunityBulkIds', i) as string;
+							const ids = idsStr.split(',').map((id) => id.trim());
+							const body: Record<string, any> = { action, ids };
+							if (action === 'move_stage') {
+								body.stage = this.getNodeParameter('opportunityBulkStage', i) as string;
+							}
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST',
+								url: `${endpointBase}/bulk`,
+								body,
+								json: true,
+							});
+						} else if (operation === 'bulkAction' && resource === 'lead') {
+							const action = this.getNodeParameter('leadBulkAction', i) as string;
+							const idsStr = this.getNodeParameter('leadBulkIds', i) as string;
+							const ids = idsStr.split(',').map((id) => id.trim());
+							const body: Record<string, any> = { action, ids };
+							if (action === 'update_status') {
+								body.statusKey = this.getNodeParameter('leadBulkStatusKey', i, '') as string;
+							}
+							if (action === 'assign') {
+								body.assignedTo = this.getNodeParameter('leadBulkAssignedTo', i, '') as string;
+							}
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST',
+								url: `${endpointBase}/bulk`,
+								body,
+								json: true,
 							});
 						} else if (resource === 'ephemeris') {
 							// Special ephemeris operations

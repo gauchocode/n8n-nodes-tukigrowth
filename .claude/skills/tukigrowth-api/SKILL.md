@@ -1,1130 +1,460 @@
 ---
 name: tukigrowth-api
 description: >
-  Complete reference for the TukiGrowth REST API v1. Use this skill when the user asks how to consume the API, what endpoints exist, how to authenticate, what fields an endpoint accepts, how to create/list/update/delete entities, or how to integrate TukiGrowth with external systems. Also triggers when the user asks for curl examples, code to consume the API, or help understanding API errors.
+  Complete reference for the TukiGrowth REST API v1. v2.1 keeps the updated
+  endpoint inventory from v2 and adds operational guidance (params, enums,
+  payload hints, and edge-case notes) to reduce integration errors.
 ---
 
-# TukiGrowth REST API v1
+# TukiGrowth REST API v1 (v2.1)
 
-TukiGrowth exposes REST endpoints that act as thin proxies over Convex functions. Each route only validates auth -> calls Convex -> formats response. Business logic lives in Convex.
+This skill is the operational guide for consuming TukiGrowth public API routes.
 
-The source of truth for the current public contract is:
+Authoritative contract sources:
 - OpenAPI JSON: `/api/docs/spec`
 - Swagger UI: `/api/docs`
+- Spec implementation: `application/app/api/docs/spec/route.ts`
 
-Use those docs first if you need exact request or response details.
-
----
+If there is any mismatch between this document and live behavior, treat
+`/api/docs/spec` as source of truth.
 
 ## Authentication
 
-All `/api/v1/*` endpoints require the `X-API-Key` header.
+All `/api/v1/*` endpoints require `X-API-Key`.
 
 ```bash
-X-API-Key: tg_abc123...
+X-API-Key: tg_xxxxxxxxxxxxxxxxx
 ```
 
-**How to get an API key:**
-1. Log in to the app
-2. Go to Settings → API Keys
-3. Create a new key (the full value is shown only once)
+How keys work:
+1. Client sends raw key in `X-API-Key`
+2. API hashes key and looks up active key record
+3. API executes operations as the key owner
+4. Expired/revoked keys fail with `401`
 
-**Internal flow:**
-1. SHA-256 hash of the header value
-2. Lookup in Convex `apiKeys` table (by_key_hash index)
-3. Generate RS256 JWT for that user
-4. Execute the Convex operation authenticated as that user
+API key management endpoints (session-authenticated, not API-key authenticated):
+- `POST /api/keys` - create key (`{ name }`)
+- `GET /api/keys` - list keys
+- `DELETE /api/keys/{id}` - revoke key
 
-Keys can have an optional `expiresAt`. Expired or deactivated keys return 401.
-
-**Key management endpoints** (require web session, not API key):
-- `GET /api/keys` — list your keys (keyHash never returned)
-- `POST /api/keys` — create key (`{ name, expiresAt? }`) → returns full value once
-- `DELETE /api/keys/{id}` — revoke key
-
----
-
-## Response Format
+## Global Response Shape
 
 ```json
-// List
-{ "data": [...], "total": 42 }
-
-// Single entity (GET, POST, PATCH)
-{ "data": { ...fields } }
-
-// Successful DELETE
-{ "data": { "id": "..." } }
-
-// Error
-{ "error": "Human-readable message", "code": "NOT_FOUND" }
+{ "data": [...] , "total": 20 }
 ```
 
-**Error codes:**
-| Code | HTTP | Cause |
-|------|------|-------|
-| `UNAUTHORIZED` | 401 | Missing, invalid, or expired API key |
-| `FORBIDDEN` | 403 | Insufficient permission on that resource |
-| `NOT_FOUND` | 404 | Resource not found |
-| `BAD_REQUEST` | 400 | Invalid body or params |
-| `CONFLICT` | 409 | Duplicate (e.g. slug already exists) |
-| `INTERNAL_ERROR` | 500 | Internal server error |
+```json
+{ "data": { "_id": "..." } }
+```
 
----
+```json
+{ "error": "Message", "code": "BAD_REQUEST" }
+```
 
-## Pagination
-
-All list endpoints accept query params:
-- `?page=1` (default: 1)
-- `?limit=20` (default varies by endpoint)
-
----
+Common error codes:
+- `UNAUTHORIZED` (401)
+- `FORBIDDEN` (403)
+- `NOT_FOUND` (404)
+- `BAD_REQUEST` (400)
+- `CONFLICT` (409)
+- `INTERNAL_ERROR` (500)
 
 ## Base URL Pattern
 
+Most resources are nested under:
+
+```text
+/api/v1/organizations/{orgId}/clients/{clientId}/...
 ```
-/api/v1/organizations/{orgId}/clients/{clientId}/{module}/{resource}
-```
 
-All IDs are Convex IDs (opaque strings like `"jd7abc123..."`).
+IDs are Convex IDs (opaque strings).
 
----
+## Important API Changes (Current)
 
-## Endpoints by Module
+- Portfolio endpoint naming changed from `offer-units` to `portfolio-items`
+- Strategy scope fields now use `scopeType: brand | portfolio_item`
+- `offerUnitId` was replaced by `portfolioItemId`
+- Business context now includes expanded strategic qualifiers (for example
+  `industryCategory`, `audienceType`, `primaryGoal`, `salesMotion`,
+  `businessStage`, maturity flags, and boolean capability flags)
+- New strategy resources are available: `strategies`,
+  `strategies/{id}/activate`, `strategies/{id}/archive`,
+  `strategies/{id}/set-primary`, `pillars`, and `initiatives`
+- New CRM and planning extras exist: lead bulk actions, lead restore,
+  ephemerides bulk/by-month/upcoming, PR opportunities bulk
+
+## Endpoint Inventory
+
+### System and Auth
+
+- `GET /api/health`
+- `POST /api/auth/register`
 
 ### Organizations
 
-```
-GET    /api/v1/organizations                     → list user's organizations
-POST   /api/v1/organizations                     → create organization
-GET    /api/v1/organizations/{orgId}             → get organization
-PATCH  /api/v1/organizations/{orgId}             → update (name, status)
-```
+- `GET /api/v1/organizations`
+- `POST /api/v1/organizations`
+- `GET /api/v1/organizations/{orgId}`
+- `PATCH /api/v1/organizations/{orgId}`
+- `GET /api/v1/organizations/{orgId}/activity`
 
-**POST body:**
-```json
-{ "name": "My Agency", "slug": "my-agency" }
-```
-
-#### Organization Members
-
-```
-GET    /api/v1/organizations/{orgId}/members              → list members
-POST   /api/v1/organizations/{orgId}/members              → invite member
-PATCH  /api/v1/organizations/{orgId}/members/{userId}     → change role
-DELETE /api/v1/organizations/{orgId}/members/{userId}     → remove member
-```
-
-**POST body:** `{ "email": "user@example.com", "role": "editor" }`
-**Available roles:** `admin`, `editor`, `approver`, `commenter`, `viewer`
-
----
+Organization members:
+- `GET /api/v1/organizations/{orgId}/members`
+- `POST /api/v1/organizations/{orgId}/members`
+- `PATCH /api/v1/organizations/{orgId}/members/{userId}`
+- `DELETE /api/v1/organizations/{orgId}/members/{userId}`
 
 ### Clients
 
-```
-GET    /api/v1/organizations/{orgId}/clients              → list (?status=active|paused|archived)
-POST   /api/v1/organizations/{orgId}/clients              → create client
-GET    /api/v1/organizations/{orgId}/clients/{clientId}   → get client
-PATCH  /api/v1/organizations/{orgId}/clients/{clientId}   → update
-DELETE /api/v1/organizations/{orgId}/clients/{clientId}   → delete
-```
-
-#### Client Modules
-
-```
-GET    .../clients/{clientId}/modules             → list enabled/disabled modules
-PATCH  .../clients/{clientId}/modules             → toggle module ({ module, enabled })
-```
-
-**Available modules:** `business_context`, `strategy`, `content_briefs`, `planning_rrss`, `planning_website`, `planning_ephemerides`, `reference_content`, `content_assets`, `ecommerce`, `services`, `ads`, `email`, `pr_speaking`, `leads`
-
-#### Client Members
-
-```
-GET    .../clients/{clientId}/members
-POST   .../clients/{clientId}/members             → { email, roleOverride }
-PATCH  .../clients/{clientId}/members/{memberId}  → { role }
-DELETE .../clients/{clientId}/members/{memberId}
-```
-
-#### Activity & Comments
-
-```
-GET    .../clients/{clientId}/activity            → activity logs (?limit=20)
-GET    .../clients/{clientId}/comments            → comments (?tableName=&recordId= to filter by record)
-POST   .../clients/{clientId}/comments            → create comment
-PATCH  .../clients/{clientId}/comments/{id}       → edit (body, isResolved)
-DELETE .../clients/{clientId}/comments/{id}       → delete
-POST   .../clients/{clientId}/comments/{id}/resolve → resolve ({ isResolved: true|false })
-```
-
-**Organization-level activity:**
-```
-GET    /api/v1/organizations/{orgId}/activity     → org activity logs (?limit=20)
-```
-
----
-
-### Business Context Module
-
-Single document per client (no list, no resource ID).
-
-```
-GET  .../clients/{clientId}/business-context   → get business context
-PUT  .../clients/{clientId}/business-context   → create or update (upsert)
-```
-
-> If the client has no saved context yet, `GET` returns `{}`.
-
-**PUT body** — all fields are optional:
-```json
-{
-  "companyDescription": "",
-  "missionStatement": "",
-  "visionStatement": "",
-  "valuePropositon": "",
-  "competitiveAdvantages": ["advantage 1", "advantage 2"],
-  "targetMarketSummary": "",
-  "toneOfVoice": "",
-  "communicationStyle": "formal|semiformal|informal|technical|friendly",
-  "brandKeywords": ["innovation", "quality"],
-  "industry": "",
-  "mainProducts": "",
-  "differentiators": "",
-  "definitions": [{ "term": "MQL", "definition": "Marketing Qualified Lead" }]
-}
-```
-
----
-
-### Strategy Module
-
-#### Objectives
-
-```
-GET    .../strategy/objectives
-POST   .../strategy/objectives
-GET    .../strategy/objectives/{id}
-PATCH  .../strategy/objectives/{id}
-DELETE .../strategy/objectives/{id}
-```
-
-#### Target Audiences
-
-```
-GET    .../strategy/audiences
-POST   .../strategy/audiences
-GET    .../strategy/audiences/{id}
-PATCH  .../strategy/audiences/{id}
-DELETE .../strategy/audiences/{id}
-```
-
-**Audience pain points (many-to-many):**
-```
-GET    .../strategy/audiences/{id}/pain-points              → list links with pain point details
-POST   .../strategy/audiences/{id}/pain-points              → { painPointId, relevanceScore (1-10) }
-PATCH  .../strategy/audiences/{id}/pain-points              → { linkId, relevanceScore }
-DELETE .../strategy/audiences/{id}/pain-points?linkId={id}  → remove link
-```
-
-#### Pain Points (library)
-
-```
-GET    .../strategy/pain-points
-POST   .../strategy/pain-points
-GET    .../strategy/pain-points/{id}
-PATCH  .../strategy/pain-points/{id}
-DELETE .../strategy/pain-points/{id}
-```
-
----
-
-### Content Module
-
-#### Briefs
-
-```
-GET    .../content/briefs
-POST   .../content/briefs
-GET    .../content/briefs/{id}
-PATCH  .../content/briefs/{id}
-DELETE .../content/briefs/{id}
-POST   .../content/briefs/{id}/submit   → submit for review
-```
-
-#### Social Media (RRSS)
-
-```
-GET    .../content/rrss
-POST   .../content/rrss
-GET    .../content/rrss/{id}
-PATCH  .../content/rrss/{id}
-DELETE .../content/rrss/{id}
-```
-
-#### Website Content
-
-```
-GET    .../content/website
-POST   .../content/website
-GET    .../content/website/{id}
-PATCH  .../content/website/{id}
-DELETE .../content/website/{id}
-```
-
-#### Assets (Media)
-
-```
-GET    .../content/assets
-POST   .../content/assets
-GET    .../content/assets/{id}
-PATCH  .../content/assets/{id}
-DELETE .../content/assets/{id}
-```
-
-**Upload helpers:**
-```
-POST   .../content/assets/presign
-POST   .../content/assets/confirm
-POST   .../content/assets/upload
-POST   .../content/assets/upload/bulk
-```
-
-#### Ephemerides
-
-```
-GET    .../content/ephemerides
-POST   .../content/ephemerides
-GET    .../content/ephemerides/{id}
-PATCH  .../content/ephemerides/{id}
-DELETE .../content/ephemerides/{id}
-GET    .../content/ephemerides/by-month?month=3&year=2026
-GET    .../content/ephemerides/upcoming?limit=10&daysAhead=30
-POST   .../content/ephemerides/bulk
-```
-
-**Bulk body:** `{ "action": "delete|update_status", "ids": ["..."], "status": "active|archived" }`
-
-#### Reference Content
-
-```
-GET    .../content/reference                          → list (?status= ?categoryId= ?priority= ?mediaType=)
-POST   .../content/reference                          → create
-GET    .../content/reference/{id}                     → get
-PATCH  .../content/reference/{id}                     → update
-DELETE .../content/reference/{id}                     → delete
-```
-
-#### Reference Content Categories
-
-```
-GET    .../content/reference/categories               → list (sorted by order asc)
-POST   .../content/reference/categories               → create (order auto-assigned)
-PATCH  .../content/reference/categories/{id}          → update
-DELETE .../content/reference/categories/{id}          → delete (body: { targetCategoryId? })
-```
-
-> Deleting a category with `targetCategoryId` reassigns its references to that target category. Response: `{ "data": { "reassignedCount": N } }`.
-> If the category has associated items and no `targetCategoryId` is provided, returns an error.
-
-> **Note:** `bulkUpdateStatus` and `bulkDelete` mutations exist in Convex but are **not exposed via REST** — only accessible from the frontend via direct Convex client calls.
-
----
-
-### E-commerce Module
-
-#### Categories
-
-```
-GET    .../ecommerce/categories            → (?parentId= for subcategories)
-POST   .../ecommerce/categories
-GET    .../ecommerce/categories/{id}
-PATCH  .../ecommerce/categories/{id}
-DELETE .../ecommerce/categories/{id}
-```
-
-#### Products
-
-```
-GET    .../ecommerce/products
-POST   .../ecommerce/products
-GET    .../ecommerce/products/{id}
-PATCH  .../ecommerce/products/{id}
-DELETE .../ecommerce/products/{id}
-```
-
-#### Customers
-
-```
-GET    .../ecommerce/customers
-POST   .../ecommerce/customers
-GET    .../ecommerce/customers/{id}
-PATCH  .../ecommerce/customers/{id}
-DELETE .../ecommerce/customers/{id}
-```
-
-#### Orders
-
-```
-GET    .../ecommerce/orders               → (?status= ?customerId= to filter)
-POST   .../ecommerce/orders
-GET    .../ecommerce/orders/{id}
-PATCH  .../ecommerce/orders/{id}
-DELETE .../ecommerce/orders/{id}
-```
-
----
-
-### Services Module
-
-#### Services
-
-```
-GET    .../services/services
-POST   .../services/services
-GET    .../services/services/{id}
-PATCH  .../services/services/{id}
-DELETE .../services/services/{id}
-```
-
-#### Packages
-
-```
-GET    .../services/packages
-POST   .../services/packages
-GET    .../services/packages/{id}
-PATCH  .../services/packages/{id}
-DELETE .../services/packages/{id}
-```
-
-#### Projects
-
-```
-GET    .../services/projects
-POST   .../services/projects
-GET    .../services/projects/{id}
-PATCH  .../services/projects/{id}
-DELETE .../services/projects/{id}
-```
-
----
-
-### Ads Module
-
-#### Campaigns
-
-```
-GET    .../ads/campaigns
-POST   .../ads/campaigns
-GET    .../ads/campaigns/{id}
-PATCH  .../ads/campaigns/{id}
-DELETE .../ads/campaigns/{id}
-```
-
-#### Ads
-
-```
-GET    .../ads/ads
-POST   .../ads/ads
-GET    .../ads/ads/{id}
-PATCH  .../ads/ads/{id}
-DELETE .../ads/ads/{id}
-```
-
-**Ad keywords (many-to-many):**
-```
-GET    .../ads/ads/{id}/keywords
-POST   .../ads/ads/{id}/keywords              → { keywordId }
-DELETE .../ads/ads/{id}/keywords?linkId={id}
-```
-
-#### Keywords (library)
-
-```
-GET    .../ads/keywords
-POST   .../ads/keywords
-GET    .../ads/keywords/{id}
-PATCH  .../ads/keywords/{id}
-DELETE .../ads/keywords/{id}
-```
-
----
-
-### Email Module
-
-#### Newsletters
-
-```
-GET    .../email/newsletters
-POST   .../email/newsletters
-GET    .../email/newsletters/{id}
-PATCH  .../email/newsletters/{id}
-DELETE .../email/newsletters/{id}
-```
-
-#### Reports
-
-```
-GET    .../email/reports
-POST   .../email/reports
-GET    .../email/reports/{id}
-PATCH  .../email/reports/{id}
-DELETE .../email/reports/{id}
-```
-
----
-
-### PR & Speaking Module
-
-#### Opportunities
-
-```
-GET    .../pr-speaking/opportunities
-POST   .../pr-speaking/opportunities
-GET    .../pr-speaking/opportunities/{id}
-PATCH  .../pr-speaking/opportunities/{id}
-DELETE .../pr-speaking/opportunities/{id}
-POST   .../pr-speaking/opportunities/bulk
-```
-
-**List filters:** `?stage=` and `?type=`
-
-**Bulk body:** `{ "action": "move_stage", "ids": ["..."], "stage": "confirmed" }`
-
----
-
-### CRM / Leads Module
-
-#### Leads
-
-```
-GET    .../crm/leads                                  → list (?statusKey= ?sourceId= ?assignedTo=)
-POST   .../crm/leads                                  → create
-GET    .../crm/leads/{id}                             → get
-PATCH  .../crm/leads/{id}                             → update
-DELETE .../crm/leads/{id}                             → soft-delete
-POST   .../crm/leads/{id}/restore                     → restore soft-deleted lead
-POST   .../crm/leads/bulk                             → bulk operations
-```
-
-**Bulk body:** `{ "action": "update_status|assign|remove|restore", "ids": ["..."], "statusKey?": "new", "assignedTo?": "PROFILE_ID" }`
-
-#### Lead Sources
-
-```
-GET    .../crm/lead-sources                           → list
-POST   .../crm/lead-sources                           → create
-PATCH  .../crm/lead-sources/{id}                      → update
-DELETE .../crm/lead-sources/{id}                      → delete (body: { targetSourceId })
-```
-
-> Deleting a source with `targetSourceId` reassigns its leads to that target source.
-
----
-
-## Usage Examples
-
-### List organizations
-
-```bash
-curl https://tuapp.com/api/v1/organizations \
-  -H "X-API-Key: tg_abc123..."
-```
-
-### Create a client
-
-```bash
-curl -X POST https://tuapp.com/api/v1/organizations/ORG_ID/clients \
-  -H "X-API-Key: tg_abc123..." \
-  -H "Content-Type: application/json" \
-  -d '{ "name": "Example Brand", "slug": "example-brand" }'
-```
-
-### List products with pagination
-
-```bash
-curl "https://tuapp.com/api/v1/organizations/ORG_ID/clients/CLIENT_ID/ecommerce/products?page=1&limit=50" \
-  -H "X-API-Key: tg_abc123..."
-```
-
-### Link a pain point to an audience
-
-```bash
-# 1. Create the pain point in the library
-curl -X POST .../strategy/pain-points \
-  -H "X-API-Key: ..." \
-  -H "Content-Type: application/json" \
-  -d '{ "description": "No online visibility" }'
-
-# 2. Link it to the audience with a relevance score
-curl -X POST .../strategy/audiences/AUDIENCE_ID/pain-points \
-  -H "X-API-Key: ..." \
-  -H "Content-Type: application/json" \
-  -d '{ "painPointId": "PAIN_POINT_ID", "relevanceScore": 8 }'
-```
-
-### Filter orders by status
-
-```bash
-curl ".../ecommerce/orders?status=pending" \
-  -H "X-API-Key: ..."
-```
-
----
-
-## Key Notes
-
-- **IDs are opaque**: Convex IDs are internal strings — store them to reference resources
-- **PATCH is partial**: only send the fields you want to update
-- **Many-to-many relationships**: `audiences ↔ pain-points` and `ads ↔ keywords` are managed with separate link endpoints
-- **Modules must be enabled**: before using a module's endpoints, verify it's active via `.../modules`
-- **Rate limiting**: the registration endpoint has a 5 req/IP/10min limit; v1 endpoints currently have no rate limit
-- **OpenAPI spec**: available at `/api/docs/spec` (JSON) and browsable docs at `/api/docs`
-- **Auto-managed fields**: `createdAt`, `updatedAt`, `createdBy`, `updatedBy` — never send these
-- **clientId / organizationId**: always come from the URL, never include in body
-- **Default statuses on create**: objectives → `planned`, briefs → `idea`, social/website → `idea`, clients → `active`, leads → `new`, PR opportunities → `idea`, reference content → `idea`
-
-When this skill is used, prefer the OpenAPI spec over memorized examples if there is any discrepancy.
-
----
-
-## Request Body Fields Reference
-
-Fields marked `*` are required. All others are optional.
-
-### Organization
-
-**POST** `{ name*, slug* }`
-
-**PATCH** `{ name, status: "active"|"paused"|"archived" }`
-
----
+- `GET /api/v1/organizations/{orgId}/clients`
+- `POST /api/v1/organizations/{orgId}/clients`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}`
+
+Client modules:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/modules`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/modules`
+
+Client activity:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/activity`
+
+Client members:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/members`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/members`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/members/{memberId}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/members/{memberId}`
+
+Business context:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/business-context`
+- `PUT /api/v1/organizations/{orgId}/clients/{clientId}/business-context`
+
+Portfolio items (renamed from offer units):
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/portfolio-items`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/portfolio-items`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/portfolio-items/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/portfolio-items/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/portfolio-items/{id}`
+
+Comments:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/comments`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}/resolve`
+
+### Strategy
+
+Objectives:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/objectives`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/objectives`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/objectives/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/strategy/objectives/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/strategy/objectives/{id}`
+
+Audiences:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}`
+
+Pain points:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}`
+
+Strategies:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies/{id}`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies/{id}/activate`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies/{id}/archive`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies/{id}/set-primary`
+
+Pillars:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pillars`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pillars`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pillars/{pillarId}`
+
+Initiatives:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/initiatives`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/initiatives`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/initiatives/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/strategy/initiatives/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/strategy/initiatives/{id}`
+
+### Content
+
+Briefs:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs/{id}`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs/{id}/submit`
+
+RRSS, Website, and Reference Content:
+- CRUD `.../content/rrss`
+- CRUD `.../content/website`
+- CRUD `.../content/reference`
+- CRUD `.../content/reference/categories` (delete supports reassignment payload)
+
+Assets:
+- CRUD `.../content/assets`
+- `POST .../content/assets/presign`
+- `POST .../content/assets/confirm`
+- `POST .../content/assets/upload`
+- `POST .../content/assets/upload/bulk`
+
+Ephemerides:
+- CRUD `.../content/ephemerides`
+- `GET .../content/ephemerides/by-month`
+- `GET .../content/ephemerides/upcoming`
+- `POST .../content/ephemerides/bulk`
+
+### CRM
+
+Leads:
+- CRUD `.../crm/leads`
+- `POST .../crm/leads/{id}/restore`
+- `POST .../crm/leads/bulk`
+
+Lead sources:
+- CRUD `.../crm/lead-sources`
+- Delete requires reassignment payload (`targetSourceId`)
+
+### Ecommerce
+
+- CRUD `.../ecommerce/categories`
+- CRUD `.../ecommerce/products`
+- CRUD `.../ecommerce/customers`
+- CRUD `.../ecommerce/orders`
+
+### Services
+
+- CRUD `.../services/services`
+- CRUD `.../services/packages`
+- CRUD `.../services/projects`
+
+### Ads
+
+- CRUD `.../ads/campaigns`
+- CRUD `.../ads/ads`
+- CRUD `.../ads/keywords`
+- `GET|POST|DELETE .../ads/ads/{id}/keywords`
+
+### Email
+
+- CRUD `.../email/newsletters`
+- CRUD `.../email/reports`
+
+### PR Speaking
+
+- CRUD `.../pr-speaking/opportunities`
+- `POST .../pr-speaking/opportunities/bulk`
+
+## Query Parameters and Behavioral Notes
+
+- List endpoints typically support `page` and `limit`.
+- `PATCH` is partial update: send only fields to modify.
+- URL owns scoping IDs (`organizationId`, `clientId`): do not duplicate in body.
+- Server-managed fields (`createdAt`, `updatedAt`, `createdBy`, `updatedBy`) should not be sent by clients.
+- Module endpoints may fail if the module is disabled for the client; check `.../clients/{clientId}/modules` first.
+- Relationship links are explicit endpoints (for example ad-keyword links), not implicit nested writes.
+
+## Notable Request Field Updates
+
+Use these when generating examples, SDK snippets, or migration guidance.
+
+- `CreateClientRequest`/`UpdateClientRequest` now include `entityType`,
+  `businessType`, `channels`, `timezone`, and `primaryLanguage`.
+- Scope-based strategy resources use `scopeType` and `portfolioItemId`:
+  - `Objective`
+  - `Audience`
+  - `PainPoint`
+  - `MarketingStrategy`
+  - `StrategicInitiative`
+- `Objective` also supports `intentType`.
+- `BusinessContext` includes new segmentation/operating-model fields such as:
+  - `industryCategory`, `audienceType`, `primaryGoal`, `salesMotion`, `businessStage`
+  - `contentMaturity`, `paidMediaMaturity`
+  - `hasOnlineCheckout`, `needsAppointments`, `hasSalesTeam`, `hasCatalog`
+  - `channelFocus`, `aliases`
+- Ecommerce `Product` payloads now expose richer merchandising fields:
+  - added `variant`, `industry`, `rating`, `reviewCount`
+  - keeps `seoTitle`, `seoDescription`, `focusKeyword`, `externalId`, `externalPlatform`
+  - supports `rawContent` to store source markup (HTML/shortcodes) separately from plain `description`
+  - legacy `imageUrl` is not part of current OpenAPI contract
+- Website content supports dual representation:
+  - `content` for normalized/plain content
+  - `rawContent` for source content (HTML/shortcodes/native editor payload)
+- `LeadsBulkRequest.action` supports: `remove`, `restore`, `update_status`, `assign`.
+- `PrOpportunityBulkRequest` supports stage movement with `action: move_stage`.
+
+## Payload and Enum Quick Reference (Operational)
+
+Fields marked with `*` are generally required on create (validate exact schema in `/api/docs/spec`).
+
+### Organization and Membership
+
+- Organization create: `{ name*, slug* }`
+- Organization patch status enum: `active|paused|archived`
+- Member roles: `admin|editor|approver|commenter|viewer`
 
 ### Client
 
-**POST**
-```json
-{
-  "name": "*",
-  "slug": "*",
-  "businessType": "* ecommerce|services|mixed|other",
-  "websiteUrl": "",
-  "timezone": "UTC",
-  "primaryLanguage": "es",
-  "channels": []
-}
+- Client create core: `{ name*, slug*, businessType* }`
+- Common client enums:
+  - `businessType`: `ecommerce|services|mixed|other`
+  - `status`: `active|paused|archived`
+- Client modules frequently exposed:
+  - `business_context`, `strategy`, `content_briefs`, `planning_rrss`,
+    `planning_website`, `planning_ephemerides`, `reference_content`,
+    `content_assets`, `ecommerce`, `services`, `ads`, `email`,
+    `pr_speaking`, `leads`
+
+### Strategy
+
+- Objectives:
+  - create core: `{ title*, type* }`
+  - common objective status: `planned|in_progress|completed|archived`
+- Audiences:
+  - create core: `{ name* }`
+- Pain points:
+  - create core: `{ title*, severity* }`
+  - severity enum: `low|medium|high|critical`
+- Strategies (marketing strategies):
+  - create core: `{ name* }`
+  - lifecycle status: `draft|active|archived`
+  - no hard delete: use `.../archive`
+  - activation (`.../activate`) validates required strategy completeness
+- Pillars:
+  - create core: `{ strategyId*, name* }`
+  - `order` is auto-assigned
+  - list usually needs strategy filtering
+- Initiatives:
+  - create core: `{ strategyId*, name* }`
+  - status enum: `draft|active|paused|completed|archived`
+
+### Content
+
+- Briefs:
+  - create core: `{ title* }`
+  - funnel level enum commonly used: `TOFU|MOFU|BOFU`
+- RRSS:
+  - create core: `{ title*, channel*, contentType* }`
+  - channel enum: `facebook|instagram|linkedin|x|tiktok|youtube|other`
+  - status enum: `idea|draft|to_approve|approved|scheduled|published|discarded`
+- Website:
+  - create core: `{ title*, contentType* }`
+  - content type enum: `article|landing|page|faq|other`
+  - supports `content` and `rawContent`
+- Reference content:
+  - media type enum: `link|text|image|video|file`
+  - priority enum: `low|medium|high|critical`
+- Assets:
+  - create core: `{ name*, url*, type* }`
+  - type enum: `image|video|doc|link|other`
+- Ephemerides:
+  - list helpers: `by-month`, `upcoming`
+  - bulk mutation endpoint available
+
+### CRM
+
+- Leads:
+  - create core: `{ email* }`
+  - status is often workflow-driven (`statusKey`), default commonly `new`
+  - restore endpoint exists for soft-deleted leads
+  - bulk actions: `remove|restore|update_status|assign`
+- Lead sources:
+  - create core: `{ name*, color* }`
+  - delete requires `{ targetSourceId }`
+
+### Ecommerce
+
+- Categories:
+  - create core: `{ name*, slug* }`
+- Products:
+  - create core: `{ name*, price* }`
+  - status enum (common): `draft|active|inactive|archived`
+  - use current OpenAPI fields (`variant`, `rating`, `reviewCount`, `rawContent`, etc.)
+  - do not rely on legacy `imageUrl`
+- Orders:
+  - create core: `{ orderDate*, status*, totalAmount* }`
+  - status enum: `pending|processing|completed|cancelled|refunded`
+
+### Services
+
+- Service create core: `{ name*, priceFrom*, billingType* }`
+- Billing type enum: `one_off|retainer|hourly`
+- Project status enum: `active|paused|completed|cancelled`
+
+### Ads
+
+- Campaign platform enum: `meta|google|linkedin|tiktok|other`
+- Campaign status enum: `planned|active|paused|finished`
+- Ad status enum: `draft|to_approve|active|paused|rejected`
+- Keyword type enum: `non_branded|negative|brand`
+
+### Email
+
+- Newsletter status enum: `draft|scheduled|sent|cancelled`
+- Reports are metrics payloads linked to newsletter/provider identifiers
+
+### PR & Speaking
+
+- Opportunity create core: `{ title*, type*, priority* }`
+- Type enum: `podcast|event|media|webinar|live|other`
+- Priority enum: `low|medium|high|critical`
+- Stage enum:
+  `idea|researching|pitched|in_conversation|confirmed|published_or_delivered|repurposed|closed`
+- Bulk endpoint supports stage moves (`action: move_stage`)
+
+## Example `curl`
+
+```bash
+curl -X POST "https://YOUR_HOST/api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: tg_xxxxxxxxxxxxxxxxx" \
+  -d '{
+    "name": "Q3 Growth Plan",
+    "scopeType": "portfolio_item",
+    "portfolioItemId": "j57...",
+    "strategyType": "demand_generation",
+    "summary": "Capture more qualified leads",
+    "isPrimary": true
+  }'
 ```
 
-**PATCH** — any of the above fields plus `status: "active"|"paused"|"archived"`
-
----
-
-### Organization Members
-
-**POST** `{ "email"*: "user@example.com", "role"*: "admin|editor|approver|commenter|viewer" }`
-
-**PATCH** `{ "role"*: "admin|editor|approver|commenter|viewer" }`
-
----
-
-### Client Members
-
-**POST** `{ "email"*: "user@example.com", "roleOverride": "admin|editor|approver|commenter|viewer" }`
-
-**PATCH** `{ "role"*: "admin|editor|approver|commenter|viewer" }`
-
----
-
-### Strategy — Objective
-
-**POST**
-```json
-{
-  "title": "*",
-  "type": "* primary|secondary",
-  "description": "",
-  "startDate": 1700000000000,
-  "endDate": 1700000000000,
-  "kpiName": "",
-  "targetValue": 0
-}
-```
-
-**PATCH** — any of the above plus:
-```json
-{
-  "status": "planned|in_progress|completed|archived",
-  "currentValue": 0
-}
-```
-
----
-
-### Strategy — Target Audience
-
-**POST**
-```json
-{
-  "name": "*",
-  "description": "",
-  "buyerPersonaName": "",
-  "demographics": {},
-  "psychographics": {},
-  "behavioral": {}
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Strategy — Pain Point
-
-**POST**
-```json
-{
-  "title": "*",
-  "severity": "* low|medium|high|critical",
-  "group": "",
-  "industry": "",
-  "description": ""
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Content — Brief
-
-**POST**
-```json
-{
-  "title": "*",
-  "funnelLevel": "* TOFU|MOFU|BOFU",
-  "objectiveId": "",
-  "description": "",
-  "period": "",
-  "formats": [],
-  "comments": ""
-}
-```
-
-**PATCH** — any of the above plus `status: "idea|in_progress|review|approved|rejected|archived"`
-
----
-
-### Content — Social Media (RRSS)
-
-**POST**
-```json
-{
-  "title": "*",
-  "channel": "* facebook|instagram|linkedin|x|tiktok|youtube|other",
-  "contentType": "* post|reel|story|video|carousel|poll|other",
-  "category": "",
-  "copy": "",
-  "mediaUrl": "",
-  "deadline": 1700000000000,
-  "publishAt": 1700000000000,
-  "campaign": "",
-  "region": [],
-  "isPaid": false,
-  "sourceLink": ""
-}
-```
-
-**PATCH** — any of the above plus `status: "idea|draft|to_approve|approved|scheduled|published|discarded"`
-
----
-
-### Content — Website
-
-**POST**
-```json
-{
-  "title": "*",
-  "contentType": "* article|landing|page|faq|other",
-  "urlSlug": "",
-  "content": "",
-  "category": "",
-  "priority": "low|medium|high|critical",
-  "deadline": 1700000000000,
-  "publishAt": 1700000000000,
-  "seoFocusKeyword": "",
-  "seoMetaTitle": "",
-  "seoMetaDescription": "",
-  "seoKeywordsSecondary": []
-}
-```
-
-**PATCH** — any of the above plus `status: "idea|draft|to_approve|approved|published|discarded"`
-
----
-
-### Content — Asset
-
-**POST**
-```json
-{
-  "name": "*",
-  "url": "*",
-  "type": "* image|video|doc|link|other",
-  "description": "",
-  "fileSize": 0,
-  "mimeType": "",
-  "folder": "",
-  "tags": []
-}
-```
-
-**PATCH** `{ name, description, folder, tags }`
-
----
-
-### E-commerce — Category
-
-**POST**
-```json
-{
-  "name": "*",
-  "slug": "*",
-  "description": "",
-  "parentId": "",
-  "externalId": ""
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### E-commerce — Product
-
-**POST**
-```json
-{
-  "name": "*",
-  "price": "*",
-  "status": "* draft|active|inactive|archived",
-  "categoryId": "",
-  "sku": "",
-  "description": "",
-  "currency": "USD",
-  "imageUrl": "",
-  "seoTitle": "",
-  "seoDescription": "",
-  "focusKeyword": "",
-  "externalId": ""
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### E-commerce — Customer
-
-**POST**
-```json
-{
-  "email": "*",
-  "firstName": "",
-  "lastName": "",
-  "phone": "",
-  "city": "",
-  "country": "",
-  "externalId": ""
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### E-commerce — Order
-
-**POST**
-```json
-{
-  "orderDate": "*",
-  "status": "* pending|processing|completed|cancelled|refunded",
-  "totalAmount": "*",
-  "items": [
-    { "productId": "", "quantity": 1, "unitPrice": 0 }
-  ],
-  "customerId": "",
-  "currency": "USD",
-  "externalOrderId": ""
-}
-```
-
-**PATCH** `{ status, totalAmount, currency, orderDate, externalOrderId }`
-
----
-
-### Services — Service
-
-**POST**
-```json
-{
-  "name": "*",
-  "priceFrom": "*",
-  "billingType": "* one_off|retainer|hourly",
-  "description": "",
-  "category": ""
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Services — Package
-
-**POST**
-```json
-{
-  "name": "*",
-  "monthlyFee": "*",
-  "servicesIncluded": ["*"],
-  "description": "",
-  "currency": "USD"
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Services — Project
-
-**POST**
-```json
-{
-  "name": "*",
-  "status": "* active|paused|completed|cancelled",
-  "servicePackageId": "",
-  "notes": "",
-  "startDate": 1700000000000,
-  "endDate": 1700000000000
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Ads — Campaign
-
-**POST**
-```json
-{
-  "name": "*",
-  "platform": "* meta|google|linkedin|tiktok|other",
-  "monthlyBudget": "*",
-  "status": "* planned|active|paused|finished",
-  "objective": "",
-  "currency": "USD",
-  "startDate": 1700000000000,
-  "endDate": 1700000000000
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Ads — Ad
-
-**POST**
-```json
-{
-  "headline": "*",
-  "status": "* draft|to_approve|active|paused|rejected",
-  "campaignId": "",
-  "adGroup": "",
-  "description": "",
-  "url": ""
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Ads — Keyword
-
-**POST**
-```json
-{
-  "keyword": "*",
-  "type": "* non_branded|negative|brand",
-  "searchVolume": 0,
-  "cpc": 0,
-  "paidDifficulty": 0
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Email — Newsletter
-
-**POST**
-```json
-{
-  "subject": "*",
-  "status": "* draft|scheduled|sent|cancelled",
-  "designUrl": "",
-  "scheduledFor": 1700000000000,
-  "providerCampaignId": ""
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Email — Report
-
-**POST**
-```json
-{
-  "sent": "*",
-  "delivered": "*",
-  "opens": "*",
-  "uniqueOpens": "*",
-  "clicks": "*",
-  "uniqueClicks": "*",
-  "bouncesSoft": "*",
-  "bouncesHard": "*",
-  "unsubscribes": "*",
-  "newsletterId": "",
-  "providerCampaignId": "",
-  "sentAt": 1700000000000
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Comments
-
-**POST** `{ "body"*: "Comment text", "tableName": "contentBriefs", "recordId": "ID" }`
-
-**PATCH** `{ "body": "Updated text", "isResolved": false }`
-
----
-
-### Content — Reference Content
-
-**POST**
-```json
-{
-  "title": "*",
-  "mediaType": "* link|text|image|video|file",
-  "priority": "* low|medium|high|critical",
-  "description": "",
-  "url": "",
-  "media": [{ "type": "image|video", "url": "", "thumbnail": "", "caption": "", "order": 0 }],
-  "categoryId": "",
-  "proposedBy": "",
-  "purpose": "",
-  "status": "idea|draft|review|approved|archived"
-}
-```
-
-**PATCH** — any of the above fields
-
----
-
-### Content — Reference Content Category
-
-**POST**
-```json
-{
-  "name": "*",
-  "color": "*"
-}
-```
-
-> `order` is auto-assigned (incremented from current max) — do not send it.
-
-**PATCH** `{ name, color, order }`
-
----
-
-### CRM — Lead
-
-**POST**
-```json
-{
-  "email": "*",
-  "firstName": "",
-  "lastName": "",
-  "phone": "",
-  "companyName": "",
-  "sourceId": "",
-  "campaign": "",
-  "leadScore": 0,
-  "statusKey": "new",
-  "assignedTo": "",
-  "lastContactAt": 1700000000000,
-  "nextFollowUpAt": 1700000000000,
-  "notes": ""
-}
-```
-
-**PATCH** — any of the above fields (except `email`)
-
-> `statusKey` is dynamic, validated against the client's workflow config. Default on create is `"new"`.
-
----
-
-### CRM — Lead Source
-
-**POST**
-```json
-{
-  "name": "*",
-  "color": "*"
-}
-```
-
-**PATCH** `{ name, color }`
-
-**DELETE** `{ "targetSourceId": "ID" }` — reassigns leads before deleting
-
----
-
-### PR & Speaking — Opportunity
-
-**POST**
-```json
-{
-  "title": "*",
-  "type": "* podcast|event|media|webinar|live|other",
-  "priority": "* low|medium|high|critical",
-  "stage": "idea|researching|pitched|in_conversation|confirmed|published_or_delivered|repurposed|closed",
-  "fitScore": 50,
-  "targetAudienceMatch": 50,
-  "authorityLevel": "low|medium|high|top",
-  "platform": "",
-  "audienceSizeEstimate": 0,
-  "ownerId": "",
-  "primaryContact": "",
-  "topicAngle": "",
-  "primaryCta": "",
-  "scheduledAt": 1700000000000,
-  "publishedAt": 1700000000000,
-  "notes": ""
-}
-```
-
-**PATCH** — any of the above fields
-
-**Defaults on create:** `stage` → `"idea"`, `fitScore` → `50`, `targetAudienceMatch` → `50`, `authorityLevel` → `"medium"`
+## How to Answer Users with This Skill
+
+When asked for API help:
+1. Confirm auth requirements (`X-API-Key`).
+2. Provide exact endpoint(s) and method(s).
+3. Include required fields and enum values.
+4. Return a practical request example (`curl`, JS `fetch`, or Axios).
+5. Include likely error cases and quick fixes.
+6. If there is ambiguity, inspect `/api/docs/spec` before replying.
+
+## v2.1 Validation Checklist
+
+Use this checklist whenever API routes or DTOs change.
+
+1. Validate each listed endpoint against `/api/docs/spec`.
+2. Re-check renamed resources (`portfolio-items`, scope fields).
+3. Re-check bulk endpoints and special actions (`restore`, `move_stage`, etc.).
+4. Re-check required fields and enums for create/update operations.
+5. Keep this document in English and keep endpoint names exact.
+
+## Maintenance Notes for Future Updates
+
+- Whenever API routes or DTO fields change, update this skill in the same PR.
+- Validate endpoint inventory against:
+  - `application/app/api/v1/**/route.ts`
+  - `application/app/api/docs/spec/route.ts`
+- Keep naming aligned with live API (for example `portfolio-items`, not `offer-units`).
+- Keep this document in English.
