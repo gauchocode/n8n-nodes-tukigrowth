@@ -2,7 +2,7 @@
 
 [n8n](https://n8n.io) community node for [TukiGrowth](https://tukigrowth.com) API.
 
-TukiGrowth is a marketing strategy and content planning platform. This node allows you to interact with organizations, clients, objectives, audiences, content briefs, and more.
+TukiGrowth is a marketing strategy and content planning platform. This node allows you to interact with organizations, clients, portfolio items, strategy resources, content, CRM, ecommerce, and more.
 
 ## Installation
 
@@ -27,7 +27,7 @@ To use this node, you need a TukiGrowth API key:
 1. Log in to your TukiGrowth account
 2. Go to **Settings** > **API Keys**
 3. Create a new API key
-4. Copy the key (starts with `tuki_`)
+4. Copy the key (starts with `tg_`)
 
 In n8n:
 1. Go to **Credentials**
@@ -40,6 +40,13 @@ In n8n:
 
 This node can be used as a tool in n8n AI Agent workflows. Simply add it to your AI Agent's tools to enable the agent to interact with TukiGrowth resources.
 
+## API v1 Alignment Notes
+
+- Auth header is `X-API-Key`
+- Base path pattern is `/api/v1/organizations/{orgId}/clients/{clientId}/...`
+- `offer-units` was replaced by `portfolio-items`
+- Strategy scope now uses `scopeType` (`brand` or `portfolio_item`) and `portfolioItemId`
+
 ## Supported Resources & Operations
 
 | Resource | List | Get | Create | Update | Delete |
@@ -47,6 +54,7 @@ This node can be used as a tool in n8n AI Agent workflows. Simply add it to your
 | Organization | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Client | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Business Context | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Portfolio Item | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Objective | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Audience | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Pain Point | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -91,10 +99,30 @@ Manage clients within an organization.
 
 **Create Fields:**
 - Name (required)
-- Code (optional)
-- Website (optional)
-- Industry (optional)
+- Slug (required)
+- Business Type (required: `ecommerce`, `services`, `mixed`, `other`)
+- Website URL (optional)
+- Timezone (optional)
+- Primary Language (optional)
+- Channels (optional)
+
+### Portfolio Item
+
+Manage portfolio items for a client.
+
+| Operation | Description |
+|-----------|-------------|
+| List | Get all portfolio items |
+| Get | Get a portfolio item by ID |
+| Create | Create a new portfolio item |
+| Update | Update a portfolio item |
+| Delete | Delete a portfolio item |
+
+**Create Fields:**
+- Name (required)
 - Description (optional)
+- Category (optional)
+- Status (optional)
 
 ### Business Context
 
@@ -126,7 +154,10 @@ Manage marketing objectives for a client.
 
 **Create Fields:**
 - Title (required)
-- Type (awareness, consideration, conversion, retention)
+- Type (required)
+- Scope Type (optional: `brand` or `portfolio_item`)
+- Portfolio Item ID (optional)
+- Intent Type (optional)
 
 ### Audience
 
@@ -143,6 +174,8 @@ Manage target audiences for a client.
 **Create Fields:**
 - Name (required)
 - Description (optional)
+- Scope Type (optional: `brand` or `portfolio_item`)
+- Portfolio Item ID (optional)
 - Demographics (optional)
 - Pain Points (optional)
 - Goals (optional)
@@ -161,7 +194,9 @@ Manage customer pain points for a client.
 
 **Create Fields:**
 - Title (required)
-- Severity (low, medium, high)
+- Severity (low, medium, high, critical)
+- Scope Type (optional: `brand` or `portfolio_item`)
+- Portfolio Item ID (optional)
 - Description (optional)
 
 ### Content Brief
@@ -254,9 +289,14 @@ Manage products for a client.
 **Create Fields:**
 - Name (required)
 - Description (optional)
-- Price (optional)
+- Price (required)
 - Category (optional)
 - SKU (optional)
+- Variant (optional)
+- Industry (optional)
+- Rating (optional)
+- Review Count (optional)
+- Raw Content (optional)
 
 ### Customer
 

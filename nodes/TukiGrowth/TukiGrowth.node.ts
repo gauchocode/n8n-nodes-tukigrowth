@@ -117,6 +117,8 @@ function buildCreateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	} else if (resource === 'leadSource') {
 		body.name = ef.getNodeParameter('leadSourceName', i) as string;
 		body.color = ef.getNodeParameter('leadSourceColor', i) as string;
+	} else if (resource === 'portfolioItem') {
+		body.name = ef.getNodeParameter('name', i) as string;
 	} else if (resource === 'marketingStrategy') {
 		body.name = ef.getNodeParameter('strategyName', i) as string;
 	} else if (resource === 'strategyPillar') {
@@ -139,7 +141,7 @@ function buildUpdateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	if (['objective', 'painPoint', 'contentBrief', 'ephemeris', 'opportunity', 'referenceContent'].includes(resource)) {
 		const title = ef.getNodeParameter('title', i, '') as string;
 		if (title) body.title = title;
-	} else if (['audience', 'asset', 'product', 'campaign', 'category', 'service', 'package', 'project', 'referenceContentCategory', 'leadSource'].includes(resource)) {
+	} else if (['audience', 'asset', 'product', 'campaign', 'category', 'service', 'package', 'project', 'referenceContentCategory', 'leadSource', 'portfolioItem'].includes(resource)) {
 		const name = ef.getNodeParameter('name', i, '') as string;
 		if (name) body.name = name;
 	} else if (resource === 'socialMedia' || resource === 'websiteContent') {
@@ -195,6 +197,7 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Organization', value: 'organization' },
 					{ name: 'Client', value: 'client' },
 					{ name: 'Business Context', value: 'businessContext' },
+					{ name: 'Portfolio Item', value: 'portfolioItem' },
 					{ name: 'Objective', value: 'objective' },
 					{ name: 'Audience', value: 'audience' },
 					{ name: 'Pain Point', value: 'painPoint' },
@@ -236,6 +239,21 @@ export class TukiGrowth implements INodeType {
 			},
 
 			// ─── OPERATIONS ──────────────────────────────────────────────
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['portfolioItem'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List portfolio items' },
+					{ name: 'Get', value: 'get', action: 'Get a portfolio item' },
+					{ name: 'Create', value: 'create', action: 'Create a portfolio item' },
+					{ name: 'Update', value: 'update', action: 'Update a portfolio item' },
+					{ name: 'Delete', value: 'delete', action: 'Delete a portfolio item' },
+				],
+				default: 'list',
+			},
 			{
 				displayName: 'Operation',
 				name: 'operation',
@@ -816,7 +834,7 @@ export class TukiGrowth implements INodeType {
 				displayOptions: {
 					show: {
 						resource: [
-							'client', 'businessContext', 'objective', 'audience', 'painPoint',
+							'client', 'businessContext', 'portfolioItem', 'objective', 'audience', 'painPoint',
 							'contentBrief', 'socialMedia', 'websiteContent', 'asset', 'ephemeris',
 							'category', 'product', 'customer', 'order',
 							'service', 'package', 'project',
@@ -857,7 +875,7 @@ export class TukiGrowth implements INodeType {
 				displayOptions: {
 					show: {
 						resource: [
-							'businessContext', 'objective', 'audience', 'painPoint',
+							'businessContext', 'portfolioItem', 'objective', 'audience', 'painPoint',
 							'contentBrief', 'socialMedia', 'websiteContent', 'asset', 'ephemeris',
 							'category', 'product', 'customer', 'order',
 							'service', 'package', 'project',
@@ -1006,7 +1024,7 @@ export class TukiGrowth implements INodeType {
 				displayOptions: {
 					show: {
 						resource: [
-							'objective', 'audience', 'painPoint', 'contentBrief', 'socialMedia',
+							'portfolioItem', 'objective', 'audience', 'painPoint', 'contentBrief', 'socialMedia',
 							'websiteContent', 'asset', 'ephemeris', 'category', 'product', 'customer', 'order',
 							'service', 'package', 'project', 'campaign', 'ad', 'keyword',
 							'newsletter', 'emailReport', 'opportunity', 'comment',
@@ -1037,6 +1055,19 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Target Market Summary', name: 'targetMarketSummary', type: 'string', default: '' },
 					{ displayName: 'Tone of Voice', name: 'toneOfVoice', type: 'string', default: '' },
 					{ displayName: 'Industry', name: 'industry', type: 'string', default: '' },
+					{ displayName: 'Industry Category', name: 'industryCategory', type: 'string', default: '' },
+					{ displayName: 'Audience Type', name: 'audienceType', type: 'string', default: '' },
+					{ displayName: 'Primary Goal', name: 'primaryGoal', type: 'string', default: '' },
+					{ displayName: 'Sales Motion', name: 'salesMotion', type: 'string', default: '' },
+					{ displayName: 'Business Stage', name: 'businessStage', type: 'string', default: '' },
+					{ displayName: 'Content Maturity', name: 'contentMaturity', type: 'string', default: '' },
+					{ displayName: 'Paid Media Maturity', name: 'paidMediaMaturity', type: 'string', default: '' },
+					{ displayName: 'Has Online Checkout', name: 'hasOnlineCheckout', type: 'boolean', default: false },
+					{ displayName: 'Needs Appointments', name: 'needsAppointments', type: 'boolean', default: false },
+					{ displayName: 'Has Sales Team', name: 'hasSalesTeam', type: 'boolean', default: false },
+					{ displayName: 'Has Catalog', name: 'hasCatalog', type: 'boolean', default: false },
+					{ displayName: 'Channel Focus', name: 'channelFocus', type: 'string', default: '', description: 'JSON array' },
+					{ displayName: 'Aliases', name: 'aliases', type: 'string', default: '', description: 'JSON array' },
 					{ displayName: 'Main Products', name: 'mainProducts', type: 'string', default: '' },
 					{ displayName: 'Differentiators', name: 'differentiators', type: 'string', default: '' },
 					{ displayName: 'Competitive Advantages', name: 'competitiveAdvantages', type: 'string', default: '', description: 'JSON array' },
@@ -1059,6 +1090,33 @@ export class TukiGrowth implements INodeType {
 			},
 
 			// ─── OBJECTIVE FIELDS ─────────────────────────────────────────
+			{
+				displayName: 'Name',
+				name: 'name',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['portfolioItem'],
+						operation: ['create', 'update'],
+					},
+				},
+				default: '',
+				required: true,
+			},
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: { show: { resource: ['portfolioItem'], operation: ['create', 'update'] } },
+				options: [
+					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{ displayName: 'Category', name: 'category', type: 'string', default: '' },
+					{ displayName: 'Status', name: 'status', type: 'string', default: '' },
+				],
+			},
+
 			{
 				displayName: 'Title',
 				name: 'title',
@@ -1093,6 +1151,18 @@ export class TukiGrowth implements INodeType {
 				displayOptions: { show: { resource: ['objective'], operation: ['create', 'update'] } },
 				options: [
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{
+						displayName: 'Scope Type',
+						name: 'scopeType',
+						type: 'options',
+						options: [
+							{ name: 'Brand', value: 'brand' },
+							{ name: 'Portfolio Item', value: 'portfolio_item' },
+						],
+						default: 'brand',
+					},
+					{ displayName: 'Portfolio Item ID', name: 'portfolioItemId', type: 'string', default: '' },
+					{ displayName: 'Intent Type', name: 'intentType', type: 'string', default: '' },
 					{ displayName: 'KPI Name', name: 'kpiName', type: 'string', default: '' },
 					{ displayName: 'Target Value', name: 'targetValue', type: 'number', default: 0 },
 					{ displayName: 'Current Value', name: 'currentValue', type: 'number', default: 0 },
@@ -1136,6 +1206,17 @@ export class TukiGrowth implements INodeType {
 				displayOptions: { show: { resource: ['audience'], operation: ['create', 'update'] } },
 				options: [
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{
+						displayName: 'Scope Type',
+						name: 'scopeType',
+						type: 'options',
+						options: [
+							{ name: 'Brand', value: 'brand' },
+							{ name: 'Portfolio Item', value: 'portfolio_item' },
+						],
+						default: 'brand',
+					},
+					{ displayName: 'Portfolio Item ID', name: 'portfolioItemId', type: 'string', default: '' },
 					{ displayName: 'Buyer Persona Name', name: 'buyerPersonaName', type: 'string', default: '' },
 					{ displayName: 'Demographics', name: 'demographics', type: 'string', default: '', description: 'JSON object' },
 					{ displayName: 'Psychographics', name: 'psychographics', type: 'string', default: '', description: 'JSON object' },
@@ -1167,6 +1248,17 @@ export class TukiGrowth implements INodeType {
 				displayOptions: { show: { resource: ['painPoint'], operation: ['create', 'update'] } },
 				options: [
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
+					{
+						displayName: 'Scope Type',
+						name: 'scopeType',
+						type: 'options',
+						options: [
+							{ name: 'Brand', value: 'brand' },
+							{ name: 'Portfolio Item', value: 'portfolio_item' },
+						],
+						default: 'brand',
+					},
+					{ displayName: 'Portfolio Item ID', name: 'portfolioItemId', type: 'string', default: '' },
 					{ displayName: 'Group', name: 'group', type: 'string', default: '' },
 					{ displayName: 'Industry', name: 'industry', type: 'string', default: '' },
 					{
@@ -1538,7 +1630,11 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'SKU', name: 'sku', type: 'string', default: '' },
 					{ displayName: 'Description', name: 'description', type: 'string', default: '' },
 					{ displayName: 'Currency', name: 'currency', type: 'string', default: 'USD' },
-					{ displayName: 'Image URL', name: 'imageUrl', type: 'string', default: '' },
+					{ displayName: 'Variant', name: 'variant', type: 'string', default: '' },
+					{ displayName: 'Industry', name: 'industry', type: 'string', default: '' },
+					{ displayName: 'Rating', name: 'rating', type: 'number', default: 0 },
+					{ displayName: 'Review Count', name: 'reviewCount', type: 'number', default: 0 },
+					{ displayName: 'Raw Content', name: 'rawContent', type: 'string', default: '', typeOptions: { rows: 4 } },
 					{ displayName: 'Category ID', name: 'categoryId', type: 'string', default: '' },
 					{ displayName: 'SEO Title', name: 'seoTitle', type: 'string', default: '' },
 					{ displayName: 'SEO Description', name: 'seoDescription', type: 'string', default: '' },
@@ -2703,6 +2799,17 @@ export class TukiGrowth implements INodeType {
 				default: {},
 				displayOptions: { show: { resource: ['marketingStrategy'], operation: ['create', 'update'] } },
 				options: [
+					{
+						displayName: 'Scope Type',
+						name: 'scopeType',
+						type: 'options',
+						options: [
+							{ name: 'Brand', value: 'brand' },
+							{ name: 'Portfolio Item', value: 'portfolio_item' },
+						],
+						default: 'brand',
+					},
+					{ displayName: 'Portfolio Item ID', name: 'portfolioItemId', type: 'string', default: '' },
 					{ displayName: 'Strategy Type', name: 'strategyType', type: 'string', default: '' },
 					{ displayName: 'Summary', name: 'summary', type: 'string', default: '', typeOptions: { rows: 3 } },
 					{ displayName: 'Problem Statement', name: 'problemStatement', type: 'string', default: '', typeOptions: { rows: 3 } },
@@ -2808,6 +2915,17 @@ export class TukiGrowth implements INodeType {
 				default: {},
 				displayOptions: { show: { resource: ['initiative'], operation: ['create', 'update'] } },
 				options: [
+					{
+						displayName: 'Scope Type',
+						name: 'scopeType',
+						type: 'options',
+						options: [
+							{ name: 'Brand', value: 'brand' },
+							{ name: 'Portfolio Item', value: 'portfolio_item' },
+						],
+						default: 'brand',
+					},
+					{ displayName: 'Portfolio Item ID', name: 'portfolioItemId', type: 'string', default: '' },
 					{ displayName: 'Pillar ID', name: 'pillarId', type: 'string', default: '' },
 					{ displayName: 'Summary', name: 'summary', type: 'string', default: '', typeOptions: { rows: 3 } },
 					{ displayName: 'Success Criteria', name: 'successCriteria', type: 'string', default: '', typeOptions: { rows: 3 } },
@@ -2958,7 +3076,7 @@ export class TukiGrowth implements INodeType {
 				displayOptions: {
 					show: {
 						resource: [
-							'organization', 'client', 'objective', 'audience', 'painPoint',
+							'organization', 'client', 'portfolioItem', 'objective', 'audience', 'painPoint',
 							'contentBrief', 'socialMedia', 'websiteContent', 'asset', 'ephemeris',
 							'category', 'product', 'customer', 'order',
 							'service', 'package', 'project',
@@ -3006,6 +3124,22 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return items.map((c: any) => ({ name: String(c.name ?? c._id), value: String(c._id) }));
+				} catch {
+					return [];
+				}
+			},
+			async getPortfolioItems(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const orgId = getResourceLocatorValue(this.getCurrentNodeParameter('organizationId') as INodeParameterResourceLocator);
+					const clientId = getResourceLocatorValue(this.getCurrentNodeParameter('clientIdSelect') as INodeParameterResourceLocator);
+					if (!orgId || !clientId) return [];
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'tukiGrowthApi',
+						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/portfolio-items`, json: true },
+					);
+					const items: any[] = Array.isArray(response?.data) ? response.data : [];
+					return items.map((item: any) => ({ name: String(item.name ?? item._id), value: String(item._id) }));
 				} catch {
 					return [];
 				}
@@ -3686,6 +3820,7 @@ export class TukiGrowth implements INodeType {
 							referenceContentCategory: 'content/reference/categories',
 							lead: 'crm/leads',
 							leadSource: 'crm/lead-sources',
+							portfolioItem: 'portfolio-items',
 							marketingStrategy: 'strategy/strategies',
 							initiative: 'strategy/initiatives',
 						};
