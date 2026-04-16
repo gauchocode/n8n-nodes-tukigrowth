@@ -262,29 +262,6 @@ export class TukiGrowth implements INodeType {
 
 			// ─── OPERATIONS ──────────────────────────────────────────────
 			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				options: [
-					{
-						displayName: 'Simplify Output',
-						name: 'simplifyOutput',
-						type: 'boolean',
-						default: true,
-						description: 'Whether to return a minimal output for Get and List operations',
-					},
-					{
-						displayName: 'Debug Mode',
-						name: 'debugMode',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to include debug information in the output',
-					},
-				],
-			},
-			{
 				displayName: 'Operation',
 				name: 'operation',
 				type: 'options',
@@ -3138,6 +3115,29 @@ export class TukiGrowth implements INodeType {
 					{ displayName: 'Limit', name: 'limit', type: 'number', default: 20, description: 'Results per page' },
 					{ displayName: 'Status', name: 'status', type: 'string', default: '', description: 'Filter by status' },
 					{ displayName: 'Search', name: 'search', type: 'string', default: '', description: 'Search term' },
+				],
+			},
+			{
+				displayName: 'Options',
+				name: 'options',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				options: [
+					{
+						displayName: 'Simplify Output',
+						name: 'simplifyOutput',
+						type: 'boolean',
+						default: true,
+						description: 'Whether to return a minimal output for Get and List operations',
+					},
+					{
+						displayName: 'Debug Mode',
+						name: 'debugMode',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include debug information in the output',
+					},
 				],
 			},
 		],
