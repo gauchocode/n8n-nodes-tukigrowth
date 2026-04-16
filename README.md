@@ -40,6 +40,13 @@ In n8n:
 
 This node can be used as a tool in n8n AI Agent workflows. Simply add it to your AI Agent's tools to enable the agent to interact with TukiGrowth resources.
 
+## Output Options
+
+Use the `Options` field in the node to control response verbosity:
+
+- `Simplify Output` (default: `true`): for `List` and `Get` operations, returns a reduced payload with the most useful fields when available (`_id`, `id`, `name`, `title`, `slug`, `status`, `type`, `email`). Disable it to get the full API response.
+- `Debug Mode` (default: `false`): includes request debug details under `_debug` in each output item.
+
 ## API v1 Alignment Notes
 
 - Auth header is `X-API-Key`

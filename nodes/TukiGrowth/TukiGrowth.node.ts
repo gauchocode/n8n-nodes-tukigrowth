@@ -164,6 +164,36 @@ function buildUpdateBody(resource: string, ef: IExecuteFunctions, i: number): Re
 	return { ...body, ...additionalFields };
 }
 
+function simplifyRecord(item: Record<string, any>): Record<string, any> {
+	const keys = ['_id', 'id', 'name', 'title', 'slug', 'status', 'type', 'email'];
+	const simplified: Record<string, any> = {};
+
+	for (const key of keys) {
+		if (item[key] !== undefined && item[key] !== null) {
+			simplified[key] = item[key];
+		}
+	}
+
+	return Object.keys(simplified).length > 0 ? simplified : item;
+}
+
+function simplifyOutputData(data: any, operation: string): any {
+	if (operation === 'list' && Array.isArray(data)) {
+		return data.map((item) => {
+			if (item && typeof item === 'object' && !Array.isArray(item)) {
+				return simplifyRecord(item as Record<string, any>);
+			}
+			return item;
+		});
+	}
+
+	if (operation === 'get' && data && typeof data === 'object' && !Array.isArray(data)) {
+		return simplifyRecord(data as Record<string, any>);
+	}
+
+	return data;
+}
+
 export class TukiGrowth implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'TukiGrowth',
@@ -179,14 +209,6 @@ export class TukiGrowth implements INodeType {
 		outputs: ['main'],
 		credentials: [{ name: 'tukiGrowthApi', required: true }],
 		properties: [
-			// ─── DEBUG OPTION ─────────────────────────────────────────────
-			{
-				displayName: 'Debug Mode',
-				name: 'debugMode',
-				type: 'boolean',
-				default: false,
-				description: 'Whether to include debug information (endpoint URL, request body) in the output',
-			},
 			// ─── RESOURCE ────────────────────────────────────────────────
 			{
 				displayName: 'Resource',
@@ -239,6 +261,29 @@ export class TukiGrowth implements INodeType {
 			},
 
 			// ─── OPERATIONS ──────────────────────────────────────────────
+			{
+				displayName: 'Options',
+				name: 'options',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				options: [
+					{
+						displayName: 'Simplify Output',
+						name: 'simplifyOutput',
+						type: 'boolean',
+						default: true,
+						description: 'Whether to return a minimal output for Get and List operations',
+					},
+					{
+						displayName: 'Debug Mode',
+						name: 'debugMode',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include debug information in the output',
+					},
+				],
+			},
 			{
 				displayName: 'Operation',
 				name: 'operation',
@@ -3415,7 +3460,9 @@ export class TukiGrowth implements INodeType {
 
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
-		const debug = this.getNodeParameter('debug', 0, false) as boolean;
+		const options = this.getNodeParameter('options', 0, {}) as Record<string, any>;
+		const debug = (options.debugMode ?? false) as boolean;
+		const simplifyOutput = (options.simplifyOutput ?? true) as boolean;
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -3961,7 +4008,10 @@ export class TukiGrowth implements INodeType {
 					}
 				}
 
-				const data = response?.data ?? response;
+				let data = response?.data ?? response;
+				if (simplifyOutput) {
+					data = simplifyOutputData(data, operation);
+				}
 				const executionData = this.helpers.constructExecutionMetaData(
 					this.helpers.returnJsonArray(data),
 					{ itemData: { item: i } },
