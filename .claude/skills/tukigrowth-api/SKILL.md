@@ -33,7 +33,7 @@ How keys work:
 4. Expired/revoked keys fail with `401`
 
 API key management endpoints (session-authenticated, not API-key authenticated):
-- `POST /api/keys` - create key (`{ name }`)
+- `POST /api/keys` - create key (`{ name }`, optional `expiresAt` in epoch ms)
 - `GET /api/keys` - list keys
 - `DELETE /api/keys/{id}` - revoke key
 
@@ -82,6 +82,10 @@ IDs are Convex IDs (opaque strings).
   `strategies/{id}/set-primary`, `pillars`, and `initiatives`
 - New CRM and planning extras exist: lead bulk actions, lead restore,
   ephemerides bulk/by-month/upcoming, PR opportunities bulk
+- Audience ↔ pain-point linking has a dedicated endpoint:
+  `strategy/audiences/{id}/pain-points` (`GET|POST|PATCH|DELETE`)
+- Legacy compatibility routes still exist under `offer-units`
+  (same backend behavior as `portfolio-items`)
 
 ## Endpoint Inventory
 
@@ -136,12 +140,35 @@ Portfolio items (renamed from offer units):
 - `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/portfolio-items/{id}`
 - `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/portfolio-items/{id}`
 
+Legacy alias (backward compatibility):
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/offer-units`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/offer-units`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/offer-units/{id}`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/offer-units/{id}`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/offer-units/{id}`
+
 Comments:
 - `GET /api/v1/organizations/{orgId}/clients/{clientId}/comments`
 - `POST /api/v1/organizations/{orgId}/clients/{clientId}/comments`
 - `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}`
 - `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}`
 - `POST /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}/resolve`
+
+Resource-scoped comments (no `tableName` required):
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs/{id}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs/{id}/comments`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/content/rrss/{id}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/content/rrss/{id}/comments`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/ecommerce/products/{id}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/ecommerce/products/{id}/comments`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/objectives/{id}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/objectives/{id}/comments`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}/comments`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}/comments`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/initiatives/{id}/comments`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/initiatives/{id}/comments`
 
 ### Strategy
 
@@ -165,6 +192,12 @@ Pain points:
 - `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}`
 - `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}`
 - `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/strategy/pain-points/{id}`
+
+Audience pain-point links:
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}/pain-points`
+- `POST /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}/pain-points`
+- `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}/pain-points`
+- `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/strategy/audiences/{id}/pain-points`
 
 Strategies:
 - `GET /api/v1/organizations/{orgId}/clients/{clientId}/strategy/strategies`
