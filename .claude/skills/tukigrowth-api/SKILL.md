@@ -101,6 +101,8 @@ IDs are Convex IDs (opaque strings).
 - `GET /api/v1/organizations/{orgId}`
 - `PATCH /api/v1/organizations/{orgId}`
 - `GET /api/v1/organizations/{orgId}/activity`
+- `GET /api/v1/organizations/{orgId}/comments/mentions`
+  - supports `clientId`, `fromDate`, `toDate`, `mentionedUserId`, `mentionedBy`, `page`, `limit`
 
 Organization members:
 - `GET /api/v1/organizations/{orgId}/members`
@@ -153,6 +155,8 @@ Comments:
 - `PATCH /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}`
 - `DELETE /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}`
 - `POST /api/v1/organizations/{orgId}/clients/{clientId}/comments/{id}/resolve`
+- `GET /api/v1/organizations/{orgId}/clients/{clientId}/comments/mentions`
+  - supports `fromDate`, `toDate`, `mentionedUserId`, `mentionedBy`, `page`, `limit`
 
 Resource-scoped comments (no `tableName` required):
 - `GET /api/v1/organizations/{orgId}/clients/{clientId}/content/briefs/{id}/comments`
