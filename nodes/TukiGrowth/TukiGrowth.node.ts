@@ -3952,17 +3952,39 @@ export class TukiGrowth implements INodeType {
 						const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
 						const clientId = getResourceLocatorValue(this.getNodeParameter('clientIdSelect', i) as INodeParameterResourceLocator);
 						const qs = this.getNodeParameter('mentionsFilters', i, {}) as Record<string, any>;
+						if (!orgId) {
+							throw new NodeOperationError(this.getNode(), 'Organization is required for Mention list', { itemIndex: i });
+						}
 
 						if (operation === 'list') {
-							const url = clientId
-								? `${BASE_URL}/organizations/${orgId}/clients/${clientId}/comments/mentions`
-								: `${BASE_URL}/organizations/${orgId}/comments/mentions`;
-							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-								method: 'GET',
-								url,
-								qs,
-								json: true,
-							});
+							if (clientId) {
+								try {
+									response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+										method: 'GET',
+										url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/comments/mentions`,
+										qs,
+										json: true,
+									});
+								} catch (error: any) {
+									const statusCode = error?.httpCode ?? error?.statusCode ?? error?.response?.status;
+									if (statusCode !== 401) {
+										throw error;
+									}
+									response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+										method: 'GET',
+										url: `${BASE_URL}/organizations/${orgId}/comments/mentions`,
+										qs: { ...qs, clientId },
+										json: true,
+									});
+								}
+							} else {
+								response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+									method: 'GET',
+									url: `${BASE_URL}/organizations/${orgId}/comments/mentions`,
+									qs,
+									json: true,
+								});
+							}
 						}
 
 					// Comments (supports global and resource-scoped endpoints)
