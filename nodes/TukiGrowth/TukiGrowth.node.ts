@@ -242,6 +242,7 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Email Report', value: 'emailReport' },
 					{ name: 'Opportunity', value: 'opportunity' },
 					{ name: 'Comment', value: 'comment' },
+					{ name: 'Resource Mention', value: 'resourceMention' },
 					{ name: 'Organization Member', value: 'organizationMember' },
 					{ name: 'Client Member', value: 'clientMember' },
 					{ name: 'Audience Pain Point', value: 'audiencePainPoint' },
@@ -287,7 +288,17 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Get', value: 'get', action: 'Get an organization' },
 					{ name: 'Create', value: 'create', action: 'Create an organization' },
 					{ name: 'Update', value: 'update', action: 'Update an organization' },
-					{ name: 'List Comment Mentions', value: 'listMentions', action: 'List organization comment mentions' },
+				],
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['resourceMention'] } },
+				options: [
+					{ name: 'List', value: 'list', action: 'List resource mentions' },
 				],
 				default: 'list',
 			},
@@ -646,7 +657,6 @@ export class TukiGrowth implements INodeType {
 				displayOptions: { show: { resource: ['comment'] } },
 				options: [
 					{ name: 'List', value: 'list', action: 'List comments' },
-					{ name: 'List Mentions', value: 'listMentions', action: 'List comment mentions' },
 					{ name: 'Create', value: 'create', action: 'Create a comment' },
 					{ name: 'Update', value: 'update', action: 'Update a comment' },
 					{ name: 'Delete', value: 'delete', action: 'Delete a comment' },
@@ -867,7 +877,7 @@ export class TukiGrowth implements INodeType {
 							'organizationMember', 'clientMember', 'audiencePainPoint', 'adKeyword', 'referenceContent',
 							'referenceContentCategory', 'lead', 'leadSource',
 							'clientModule', 'clientActivity', 'organizationActivity',
-							'marketingStrategy', 'strategyPillar', 'initiative',
+							'marketingStrategy', 'strategyPillar', 'initiative', 'resourceMention',
 						],
 					},
 				},
@@ -908,7 +918,7 @@ export class TukiGrowth implements INodeType {
 							'clientMember', 'audiencePainPoint', 'adKeyword', 'referenceContent',
 							'referenceContentCategory', 'lead', 'leadSource',
 							'clientModule', 'clientActivity',
-							'marketingStrategy', 'strategyPillar', 'initiative',
+							'marketingStrategy', 'strategyPillar', 'initiative', 'resourceMention',
 						],
 					},
 				},
@@ -3065,12 +3075,11 @@ export class TukiGrowth implements INodeType {
 				default: {},
 				displayOptions: {
 					show: {
-						resource: ['organization', 'comment'],
-						operation: ['listMentions'],
+						resource: ['resourceMention'],
+						operation: ['list'],
 					},
 				},
 				options: [
-					{ displayName: 'Client ID', name: 'clientId', type: 'string', default: '', description: 'Filter by client ID (organization mentions only)' },
 					{ displayName: 'From Date', name: 'fromDate', type: 'string', default: '', description: 'ISO date or timestamp' },
 					{ displayName: 'To Date', name: 'toDate', type: 'string', default: '', description: 'ISO date or timestamp' },
 					{ displayName: 'Mentioned User ID', name: 'mentionedUserId', type: 'string', default: '' },
@@ -3592,12 +3601,6 @@ export class TukiGrowth implements INodeType {
 						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
 							method: 'PATCH', url: `${BASE_URL}/organizations/${orgId}`, body, json: true,
 						});
-					} else if (operation === 'listMentions') {
-						const orgId = this.getNodeParameter('orgId', i) as string;
-						const qs = this.getNodeParameter('mentionsFilters', i, {}) as Record<string, any>;
-						response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-							method: 'GET', url: `${BASE_URL}/organizations/${orgId}/comments/mentions`, qs, json: true,
-						});
 					}
 
 				// ── ORGANIZATION MEMBER ────────────────────────────────────────────
@@ -3936,6 +3939,24 @@ export class TukiGrowth implements INodeType {
 							});
 						}
 
+					// Resource mentions
+					} else if (resource === 'resourceMention') {
+						const orgId = getResourceLocatorValue(this.getNodeParameter('organizationId', i) as INodeParameterResourceLocator);
+						const clientId = getResourceLocatorValue(this.getNodeParameter('clientIdSelect', i) as INodeParameterResourceLocator);
+						const qs = this.getNodeParameter('mentionsFilters', i, {}) as Record<string, any>;
+
+						if (operation === 'list') {
+							const url = clientId
+								? `${BASE_URL}/organizations/${orgId}/clients/${clientId}/comments/mentions`
+								: `${BASE_URL}/organizations/${orgId}/comments/mentions`;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET',
+								url,
+								qs,
+								json: true,
+							});
+						}
+
 					// Comments (supports global and resource-scoped endpoints)
 					} else if (resource === 'comment') {
 						const endpointType = this.getNodeParameter('commentEndpointType', i, 'global') as string;
@@ -3964,11 +3985,6 @@ export class TukiGrowth implements INodeType {
 							const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
 							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
 								method: 'GET', url: endpointBase, qs, json: true,
-							});
-						} else if (operation === 'listMentions') {
-							const qs = this.getNodeParameter('mentionsFilters', i, {}) as Record<string, any>;
-							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-								method: 'GET', url: `${moduleBase}/comments/mentions`, qs, json: true,
 							});
 						} else if (operation === 'create') {
 							const body = buildCreateBody(resource, this, i);
