@@ -2304,6 +2304,57 @@ export class TukiGrowth implements INodeType {
 
 			// ─── COMMENT FIELDS ───────────────────────────────────────────
 			{
+				displayName: 'Comment Endpoint Type',
+				name: 'commentEndpointType',
+				type: 'options',
+				options: [
+					{ name: 'Global Comments', value: 'global' },
+					{ name: 'Resource-Scoped Comments', value: 'resourceScoped' },
+				],
+				displayOptions: { show: { resource: ['comment'], operation: ['list', 'create'] } },
+				default: 'global',
+				description: 'Use global comments endpoints or resource-scoped comments endpoints',
+			},
+			{
+				displayName: 'Target Resource',
+				name: 'commentTargetResource',
+				type: 'options',
+				options: [
+					{ name: 'Content Brief', value: 'contentBrief' },
+					{ name: 'Social Media Post', value: 'socialMedia' },
+					{ name: 'Product', value: 'product' },
+					{ name: 'Objective', value: 'objective' },
+					{ name: 'Audience', value: 'audience' },
+					{ name: 'Pain Point', value: 'painPoint' },
+					{ name: 'Strategic Initiative', value: 'initiative' },
+				],
+				displayOptions: {
+					show: {
+						resource: ['comment'],
+						operation: ['list', 'create'],
+						commentEndpointType: ['resourceScoped'],
+					},
+				},
+				default: 'contentBrief',
+				required: true,
+				description: 'Resource type used by the scoped comments endpoint',
+			},
+			{
+				displayName: 'Target Resource ID',
+				name: 'commentTargetId',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['comment'],
+						operation: ['list', 'create'],
+						commentEndpointType: ['resourceScoped'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'ID of the resource to list/create scoped comments for',
+			},
+			{
 				displayName: 'Body',
 				name: 'commentBody',
 				type: 'string',
@@ -2319,8 +2370,8 @@ export class TukiGrowth implements INodeType {
 				default: {},
 				displayOptions: { show: { resource: ['comment'], operation: ['create'] } },
 				options: [
-					{ displayName: 'Table Name', name: 'tableName', type: 'string', default: '' },
-					{ displayName: 'Related Record ID', name: 'recordId', type: 'string', default: '' },
+					{ displayName: 'Table Name (Global)', name: 'tableName', type: 'string', default: '' },
+					{ displayName: 'Related Record ID (Global)', name: 'recordId', type: 'string', default: '' },
 				],
 			},
 			{
@@ -3838,6 +3889,62 @@ export class TukiGrowth implements INodeType {
 							});
 						}
 
+					// Comments (supports global and resource-scoped endpoints)
+					} else if (resource === 'comment') {
+						const endpointType = this.getNodeParameter('commentEndpointType', i, 'global') as string;
+						const scopedCommentPaths: Record<string, string> = {
+							contentBrief: 'content/briefs',
+							socialMedia: 'content/rrss',
+							product: 'ecommerce/products',
+							objective: 'strategy/objectives',
+							audience: 'strategy/audiences',
+							painPoint: 'strategy/pain-points',
+							initiative: 'strategy/initiatives',
+						};
+
+						let endpointBase = `${moduleBase}/comments`;
+						if (endpointType === 'resourceScoped' && (operation === 'list' || operation === 'create')) {
+							const targetResource = this.getNodeParameter('commentTargetResource', i, 'contentBrief') as string;
+							const targetId = this.getNodeParameter('commentTargetId', i) as string;
+							const scopedPath = scopedCommentPaths[targetResource];
+							if (!scopedPath) {
+								throw new NodeOperationError(this.getNode(), `Unsupported comment target resource: ${targetResource}`, { itemIndex: i });
+							}
+							endpointBase = `${moduleBase}/${scopedPath}/${targetId}/comments`;
+						}
+
+						if (operation === 'list') {
+							const qs = this.getNodeParameter('filters', i, {}) as Record<string, any>;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'GET', url: endpointBase, qs, json: true,
+							});
+						} else if (operation === 'create') {
+							const body = buildCreateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST', url: endpointBase, body, json: true,
+							});
+						} else if (operation === 'update') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							const body = buildUpdateBody(resource, this, i);
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'PATCH', url: `${endpointBase}/${recordId}`, body, json: true,
+							});
+						} else if (operation === 'delete') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'DELETE', url: `${endpointBase}/${recordId}`, json: true,
+							});
+						} else if (operation === 'resolve') {
+							const recordId = this.getNodeParameter('recordId', i) as string;
+							const isResolved = this.getNodeParameter('isResolved', i, true) as boolean;
+							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
+								method: 'POST',
+								url: `${endpointBase}/${recordId}/resolve`,
+								body: { isResolved },
+								json: true,
+							});
+						}
+
 					// Standard module resources
 					} else {
 						const resourcePaths: Record<string, string> = {
@@ -3862,7 +3969,6 @@ export class TukiGrowth implements INodeType {
 							newsletter: 'email/newsletters',
 							emailReport: 'email/reports',
 							opportunity: 'pr-speaking/opportunities',
-							comment: 'comments',
 							referenceContent: 'content/reference',
 							referenceContentCategory: 'content/reference/categories',
 							lead: 'crm/leads',
@@ -3923,15 +4029,6 @@ export class TukiGrowth implements INodeType {
 							const recordId = this.getNodeParameter('recordId', i) as string;
 							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
 								method: 'POST', url: `${endpointBase}/${recordId}/submit`, json: true,
-							});
-						} else if (operation === 'resolve' && resource === 'comment') {
-							const recordId = this.getNodeParameter('recordId', i) as string;
-							const isResolved = this.getNodeParameter('isResolved', i, true) as boolean;
-							response = await this.helpers.httpRequestWithAuthentication.call(this, 'tukiGrowthApi', {
-								method: 'POST',
-								url: `${endpointBase}/${recordId}/resolve`,
-								body: { isResolved },
-								json: true,
 							});
 						} else if (operation === 'restore' && resource === 'lead') {
 							const recordId = this.getNodeParameter('recordId', i) as string;
