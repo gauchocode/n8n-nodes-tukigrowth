@@ -194,6 +194,14 @@ function simplifyOutputData(data: any, operation: string): any {
 	return data;
 }
 
+function sortNodeOptions(options: INodePropertyOptions[]): INodePropertyOptions[] {
+	return options.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+}
+
+function sortListSearchResults(results: INodeListSearchResult['results']): INodeListSearchResult['results'] {
+	return results.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+}
+
 export class TukiGrowth implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'TukiGrowth',
@@ -242,7 +250,7 @@ export class TukiGrowth implements INodeType {
 					{ name: 'Email Report', value: 'emailReport' },
 					{ name: 'Opportunity', value: 'opportunity' },
 					{ name: 'Comment', value: 'comment' },
-					{ name: 'Resource Mention', value: 'resourceMention' },
+					{ name: 'Mention', value: 'resourceMention' },
 					{ name: 'Organization Member', value: 'organizationMember' },
 					{ name: 'Client Member', value: 'clientMember' },
 					{ name: 'Audience Pain Point', value: 'audiencePainPoint' },
@@ -3253,7 +3261,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((o: any) => ({ name: String(o.name ?? o._id), value: String(o._id) }));
+					return sortNodeOptions(items.map((o: any) => ({ name: String(o.name ?? o._id), value: String(o._id) })));
 				} catch {
 					return [];
 				}
@@ -3268,7 +3276,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((c: any) => ({ name: String(c.name ?? c._id), value: String(c._id) }));
+					return sortNodeOptions(items.map((c: any) => ({ name: String(c.name ?? c._id), value: String(c._id) })));
 				} catch {
 					return [];
 				}
@@ -3284,7 +3292,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/portfolio-items`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((item: any) => ({ name: String(item.name ?? item._id), value: String(item._id) }));
+					return sortNodeOptions(items.map((item: any) => ({ name: String(item.name ?? item._id), value: String(item._id) })));
 				} catch {
 					return [];
 				}
@@ -3300,7 +3308,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/audiences`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((a: any) => ({ name: String(a.name ?? a._id), value: String(a._id) }));
+					return sortNodeOptions(items.map((a: any) => ({ name: String(a.name ?? a._id), value: String(a._id) })));
 				} catch {
 					return [];
 				}
@@ -3316,7 +3324,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/pain-points`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((p: any) => ({ name: String(p.title ?? p._id), value: String(p._id) }));
+					return sortNodeOptions(items.map((p: any) => ({ name: String(p.title ?? p._id), value: String(p._id) })));
 				} catch {
 					return [];
 				}
@@ -3332,7 +3340,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/ads/ads`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((a: any) => ({ name: String(a.headline ?? a._id), value: String(a._id) }));
+					return sortNodeOptions(items.map((a: any) => ({ name: String(a.headline ?? a._id), value: String(a._id) })));
 				} catch {
 					return [];
 				}
@@ -3348,7 +3356,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/ads/keywords`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((k: any) => ({ name: String(k.keyword ?? k._id), value: String(k._id) }));
+					return sortNodeOptions(items.map((k: any) => ({ name: String(k.keyword ?? k._id), value: String(k._id) })));
 				} catch {
 					return [];
 				}
@@ -3364,7 +3372,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/crm/lead-sources`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((s: any) => ({ name: String(s.name ?? s._id), value: String(s._id) }));
+					return sortNodeOptions(items.map((s: any) => ({ name: String(s.name ?? s._id), value: String(s._id) })));
 				} catch {
 					return [];
 				}
@@ -3380,7 +3388,7 @@ export class TukiGrowth implements INodeType {
 						{ method: 'GET', url: `${BASE_URL}/organizations/${orgId}/clients/${clientId}/strategy/strategies`, json: true },
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
-					return items.map((s: any) => ({ name: String(s.name ?? s._id), value: String(s._id) }));
+					return sortNodeOptions(items.map((s: any) => ({ name: String(s.name ?? s._id), value: String(s._id) })));
 				} catch {
 					return [];
 				}
@@ -3396,10 +3404,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((o: any) => ({
+						results: sortListSearchResults(items.map((o: any) => ({
 							name: String(o.name ?? o._id),
 							value: String(o._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };
@@ -3416,10 +3424,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((c: any) => ({
+						results: sortListSearchResults(items.map((c: any) => ({
 							name: String(c.name ?? c._id),
 							value: String(c._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };
@@ -3437,10 +3445,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((a: any) => ({
+						results: sortListSearchResults(items.map((a: any) => ({
 							name: String(a.name ?? a._id),
 							value: String(a._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };
@@ -3458,10 +3466,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((p: any) => ({
+						results: sortListSearchResults(items.map((p: any) => ({
 							name: String(p.title ?? p._id),
 							value: String(p._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };
@@ -3479,10 +3487,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((a: any) => ({
+						results: sortListSearchResults(items.map((a: any) => ({
 							name: String(a.headline ?? a._id),
 							value: String(a._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };
@@ -3500,10 +3508,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((k: any) => ({
+						results: sortListSearchResults(items.map((k: any) => ({
 							name: String(k.keyword ?? k._id),
 							value: String(k._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };
@@ -3521,10 +3529,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((s: any) => ({
+						results: sortListSearchResults(items.map((s: any) => ({
 							name: String(s.name ?? s._id),
 							value: String(s._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };
@@ -3542,10 +3550,10 @@ export class TukiGrowth implements INodeType {
 					);
 					const items: any[] = Array.isArray(response?.data) ? response.data : [];
 					return {
-						results: items.map((s: any) => ({
+						results: sortListSearchResults(items.map((s: any) => ({
 							name: String(s.name ?? s._id),
 							value: String(s._id),
-						})),
+						}))),
 					};
 				} catch {
 					return { results: [] };

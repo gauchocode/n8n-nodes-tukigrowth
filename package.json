@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-tukigrowth",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "n8n community node for TukiGrowth API",
   "keywords": [
     "n8n",
